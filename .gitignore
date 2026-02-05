@@ -1,10 +1,12 @@
 # Node
-node_modules/
+**/node_modules/
+.npm/
+.pnpm-store/
 
 # Env
-.env
-.env.*
-!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 
 # Expo
 .expo/
@@ -12,12 +14,19 @@ node_modules/
 
 # React Native
 android/.gradle/
+android/app/.cxx/
 android/app/build/
 android/build/
 android/local.properties
 **/android/app/debug.keystore
 ios/Pods/
 ios/build/
+ios/DerivedData/
+ios/*.xcworkspace/xcuserdata/
+ios/*.xcodeproj/xcuserdata/
+
+# Firebase
+.firebase/
 
 # OS
 .DS_Store

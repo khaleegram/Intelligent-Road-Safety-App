@@ -16,24 +16,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Button from '../components/Button';
 import ScreenHeader from '../components/ScreenHeader';
+import { mapboxToken, missingFirebaseKeys } from '../config/env';
 import type { RootTabParamList } from '../navigation/RootNavigator';
 import { fetchHotspots } from '../services/firestore';
 import type { HotspotRecord } from '../types';
 
-const mapboxToken = process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '';
 const hasMapboxToken = mapboxToken.length > 0;
 const mapboxTokenNotice =
   'Mapbox token missing. Set EXPO_PUBLIC_MAPBOX_TOKEN in apps/mobile/.env and rebuild the dev client.';
 const locationPermissionNotice =
   'Location permission is required to show your position. Enable it in system settings.';
-const firebaseMissingKeys = [
-  !process.env.EXPO_PUBLIC_FIREBASE_API_KEY && 'EXPO_PUBLIC_FIREBASE_API_KEY',
-  !process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID && 'EXPO_PUBLIC_FIREBASE_PROJECT_ID',
-  !process.env.EXPO_PUBLIC_FIREBASE_APP_ID && 'EXPO_PUBLIC_FIREBASE_APP_ID',
-].filter(Boolean) as string[];
 const firebaseNotice =
-  firebaseMissingKeys.length > 0
-    ? `Firebase config missing: ${firebaseMissingKeys.join(', ')}. Update apps/mobile/.env and restart.`
+  missingFirebaseKeys.length > 0
+    ? `Firebase config missing: ${missingFirebaseKeys.join(', ')}. Update apps/mobile/.env and restart.`
     : '';
 
 if (hasMapboxToken) {
@@ -189,7 +184,7 @@ export default function MapScreen() {
             <Text style={styles.bannerText}>{locationPermissionNotice}</Text>
           </View>
         ) : null}
-        {firebaseMissingKeys.length > 0 ? (
+        {missingFirebaseKeys.length > 0 ? (
           <View style={styles.banner}>
             <Text style={styles.bannerTitle}>Firebase not configured</Text>
             <Text style={styles.bannerText}>{firebaseNotice}</Text>

@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Button from '../components/Button';
 import ScreenHeader from '../components/ScreenHeader';
+import { missingFirebaseKeys } from '../config/env';
 import type { RootTabParamList } from '../navigation/RootNavigator';
 import { createAccident } from '../services/firestore';
 import type { AccidentSeverity, AccidentRecord } from '../types';
@@ -24,14 +25,9 @@ const severityOptions: AccidentSeverity[] = [
   'Minor',
   'Damage Only',
 ];
-const firebaseMissingKeys = [
-  !process.env.EXPO_PUBLIC_FIREBASE_API_KEY && 'EXPO_PUBLIC_FIREBASE_API_KEY',
-  !process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID && 'EXPO_PUBLIC_FIREBASE_PROJECT_ID',
-  !process.env.EXPO_PUBLIC_FIREBASE_APP_ID && 'EXPO_PUBLIC_FIREBASE_APP_ID',
-].filter(Boolean) as string[];
 const firebaseNotice =
-  firebaseMissingKeys.length > 0
-    ? `Firebase config missing: ${firebaseMissingKeys.join(', ')}. Update apps/mobile/.env and restart.`
+  missingFirebaseKeys.length > 0
+    ? `Firebase config missing: ${missingFirebaseKeys.join(', ')}. Update apps/mobile/.env and restart.`
     : '';
 
 export default function ReportScreen() {
@@ -110,7 +106,7 @@ export default function ReportScreen() {
         title="Report Incident"
         subtitle="Provide details to help build safer roads."
       />
-      {firebaseMissingKeys.length > 0 ? (
+      {missingFirebaseKeys.length > 0 ? (
         <View style={styles.banner}>
           <Text style={styles.bannerTitle}>Firebase not configured</Text>
           <Text style={styles.bannerText}>{firebaseNotice}</Text>
