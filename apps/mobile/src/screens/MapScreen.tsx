@@ -112,6 +112,7 @@ export default function MapScreen() {
   const [routeDestination, setRouteDestination] = useState<[number, number] | null>(
     null
   );
+  const [routePickMode, setRoutePickMode] = useState(false);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState<
     boolean | null
   >(null);
@@ -217,6 +218,22 @@ export default function MapScreen() {
     setRouteDestination(null);
     setRouteLat('');
     setRouteLng('');
+    setRoutePickMode(false);
+  };
+
+  const handleRoutePick = (coords: [number, number]) => {
+    setRouteDestination(coords);
+    setRouteLat(coords[1].toFixed(6));
+    setRouteLng(coords[0].toFixed(6));
+    setRoutePickMode(false);
+  };
+
+  const handleMapPress = (event: MapboxGL.OnPressEvent) => {
+    if (!routePickMode) return;
+    const coords = event.geometry?.coordinates;
+    if (!coords || coords.length < 2) return;
+    const [lng, lat] = coords;
+    handleRoutePick([lng, lat]);
   };
 
   const routeStart = userLocation ?? defaultCenter;
@@ -247,7 +264,7 @@ export default function MapScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {hasMapboxToken ? (
-        <MapboxGL.MapView style={styles.map}>
+        <MapboxGL.MapView style={styles.map} onPress={handleMapPress}>
           <MapboxGL.Camera
             ref={cameraRef}
             followUserLocation={followUser}
@@ -361,6 +378,17 @@ export default function MapScreen() {
           <View style={styles.routeActions}>
             <Pressable style={styles.routeButton} onPress={setRoute}>
               <Text style={styles.routeButtonText}>Set route</Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.routeButtonSecondary,
+                routePickMode && styles.routeButtonSecondaryActive,
+              ]}
+              onPress={() => setRoutePickMode((prev) => !prev)}
+            >
+              <Text style={styles.routeButtonSecondaryText}>
+                {routePickMode ? 'Tap map...' : 'Pick on map'}
+              </Text>
             </Pressable>
             <Pressable style={styles.routeButtonSecondary} onPress={clearRoute}>
               <Text style={styles.routeButtonSecondaryText}>Clear</Text>
@@ -551,6 +579,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
+  },
+  routeButtonSecondaryActive: {
+    backgroundColor: '#f5f5f5',
   },
   routeButtonSecondaryText: {
     color: '#111',
