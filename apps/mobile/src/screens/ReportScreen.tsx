@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import {
   ActivityIndicator,
   Alert,
@@ -8,7 +10,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import Button from '../components/Button';
+import ScreenHeader from '../components/ScreenHeader';
+import type { RootTabParamList } from '../navigation/RootNavigator';
 import { createAccident } from '../services/firestore';
 import type { AccidentSeverity, AccidentRecord } from '../types';
 
@@ -18,8 +24,18 @@ const severityOptions: AccidentSeverity[] = [
   'Minor',
   'Damage Only',
 ];
+const firebaseMissingKeys = [
+  !process.env.EXPO_PUBLIC_FIREBASE_API_KEY && 'EXPO_PUBLIC_FIREBASE_API_KEY',
+  !process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID && 'EXPO_PUBLIC_FIREBASE_PROJECT_ID',
+  !process.env.EXPO_PUBLIC_FIREBASE_APP_ID && 'EXPO_PUBLIC_FIREBASE_APP_ID',
+].filter(Boolean) as string[];
+const firebaseNotice =
+  firebaseMissingKeys.length > 0
+    ? `Firebase config missing: ${firebaseMissingKeys.join(', ')}. Update apps/mobile/.env and restart.`
+    : '';
 
 export default function ReportScreen() {
+  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [timestamp, setTimestamp] = useState('');
@@ -89,8 +105,17 @@ export default function ReportScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Accident Report</Text>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <ScreenHeader
+        title="Report Incident"
+        subtitle="Provide details to help build safer roads."
+      />
+      {firebaseMissingKeys.length > 0 ? (
+        <View style={styles.banner}>
+          <Text style={styles.bannerTitle}>Firebase not configured</Text>
+          <Text style={styles.bannerText}>{firebaseNotice}</Text>
+        </View>
+      ) : null}
 
       <TextInput
         style={styles.input}
@@ -165,14 +190,22 @@ export default function ReportScreen() {
         keyboardType="numeric"
       />
 
-      <Pressable style={styles.submit} onPress={submit} disabled={submitting}>
-        {submitting ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.submitText}>Submit report</Text>
-        )}
-      </Pressable>
-    </View>
+      {submitting ? (
+        <View style={styles.loading}>
+          <ActivityIndicator color="#111" />
+          <Text style={styles.loadingText}>Submitting...</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.actions}>
+        <Button label="Submit report" onPress={submit} disabled={submitting} />
+        <Button
+          label="Back to map"
+          variant="secondary"
+          onPress={() => navigation.navigate('Map')}
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -182,10 +215,33 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: '#fff',
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 16,
+  loading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  loadingText: {
+    fontSize: 12,
+    color: '#333',
+  },
+  banner: {
+    marginBottom: 12,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#fff3cd',
+    borderWidth: 1,
+    borderColor: '#ffeeba',
+  },
+  bannerTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#856404',
+  },
+  bannerText: {
+    marginTop: 4,
+    fontSize: 11,
+    color: '#856404',
   },
   input: {
     borderWidth: 1,
@@ -228,15 +284,8 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: '#fff',
   },
-  submit: {
-    marginTop: 8,
-    backgroundColor: '#111',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  submitText: {
-    color: '#fff',
-    fontWeight: '600',
+  actions: {
+    marginTop: 12,
+    gap: 10,
   },
 });

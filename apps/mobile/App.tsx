@@ -1,31 +1,13 @@
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import MapScreen from './src/screens/MapScreen';
-import ReportScreen from './src/screens/ReportScreen';
-import SettingsScreen from './src/screens/SettingsScreen';
-import './src/services/firebase';
-
-export type RootStackParamList = {
-  Map: undefined;
-  Report: undefined;
-  Settings: undefined;
-};
-
-const Stack = createNativeStackNavigator<RootStackParamList>();
+import RootNavigator from './src/navigation/RootNavigator';
 
 export default function App() {
   return (
-    <>
-      <NavigationContainer>
-        <Stack.Navigator initialRouteName="Map">
-          <Stack.Screen name="Map" component={MapScreen} />
-          <Stack.Screen name="Report" component={ReportScreen} />
-          <Stack.Screen name="Settings" component={SettingsScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
+    <SafeAreaProvider>
+      <RootNavigator />
       <StatusBar style="auto" />
-    </>
+    </SafeAreaProvider>
   );
 }

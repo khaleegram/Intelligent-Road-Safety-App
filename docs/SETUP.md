@@ -19,7 +19,7 @@ This document covers local setup for the Intelligent Road Safety app.
 Copy `apps/mobile/.env.example` to `apps/mobile/.env` and fill in:
 
 EXPO_PUBLIC_MAPBOX_TOKEN=your_token_here
-MAPBOX_DOWNLOAD_TOKEN=your_secret_download_token_here
+RNMAPBOX_MAPS_DOWNLOAD_TOKEN=your_secret_download_token_here
 EXPO_PUBLIC_FIREBASE_API_KEY=your_key_here
 EXPO_PUBLIC_FIREBASE_PROJECT_ID=your_project_id_here
 EXPO_PUBLIC_FIREBASE_APP_ID=your_app_id_here

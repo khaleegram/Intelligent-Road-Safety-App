@@ -6,9 +6,18 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     plugins: [
       ...(config.plugins ?? []),
       [
+        'expo-location',
+        {
+          locationWhenInUsePermission: 'Allow RoadSafe to access your location.',
+        },
+      ],
+      [
         '@rnmapbox/maps',
         {
-          RNMapboxMapsDownloadToken: process.env.MAPBOX_DOWNLOAD_TOKEN ?? '',
+          RNMapboxMapsDownloadToken:
+            process.env.RNMAPBOX_MAPS_DOWNLOAD_TOKEN ??
+            process.env.MAPBOX_DOWNLOAD_TOKEN ??
+            '',
         },
       ],
     ],

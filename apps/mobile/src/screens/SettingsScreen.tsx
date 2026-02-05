@@ -1,22 +1,41 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import Button from '../components/Button';
+import ScreenHeader from '../components/ScreenHeader';
+import type { RootTabParamList } from '../navigation/RootNavigator';
 
 export default function SettingsScreen() {
+  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Settings (placeholder)</Text>
-    </View>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <ScreenHeader
+        title="Settings"
+        subtitle="Manage notifications and safety preferences."
+      />
+      <View style={styles.actions}>
+        <Button label="Back to map" onPress={() => navigation.navigate('Map')} />
+        <Button
+          label="Report incident"
+          variant="secondary"
+          onPress={() => navigation.navigate('Report')}
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 20,
     backgroundColor: '#fff',
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
+  actions: {
+    marginTop: 12,
+    gap: 10,
   },
 });
