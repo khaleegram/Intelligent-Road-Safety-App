@@ -2,6 +2,57 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isNumber(value) {
+      return value is int || value is float;
+    }
+
+    function isValidAccident(data) {
+      return data.keys().hasAll([
+          'latitude',
+          'longitude',
+          'timestamp',
+          'severity',
+          'road_type',
+          'weather',
+          'vehicle_count',
+          'casualty_count',
+          'created_at'
+        ]) &&
+        data.keys().hasOnly([
+          'latitude',
+          'longitude',
+          'timestamp',
+          'severity',
+          'road_type',
+          'weather',
+          'vehicle_count',
+          'casualty_count',
+          'created_at',
+          'server_created_at'
+        ]) &&
+        isNumber(data.latitude) &&
+        isNumber(data.longitude) &&
+        data.timestamp is string &&
+        data.severity is string &&
+        data.road_type is string &&
+        data.weather is string &&
+        isNumber(data.vehicle_count) &&
+        isNumber(data.casualty_count) &&
+        data.created_at is string &&
+        (!('server_created_at' in data) || data.server_created_at is timestamp);
+    }
+
+    match /accidents/{accidentId} {
+      allow read: if true;
+      allow create: if isValidAccident(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    match /hotspots/{hotspotId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
