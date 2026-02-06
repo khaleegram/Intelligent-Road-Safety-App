@@ -57,3 +57,10 @@ build/
 *.tmp
 *.swp
 *.swo
+# Firebase service account keys
+**/serviceAccount*.json
+**/*firebase-adminsdk*.json
+**/firebase-adminsdk-*.json
+# Local-only env files
+.env.local
+backend/pipeline/.env.local
