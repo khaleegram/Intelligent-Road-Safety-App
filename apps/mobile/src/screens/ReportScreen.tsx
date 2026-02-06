@@ -1,25 +1,28 @@
 import MapboxGL from '@rnmapbox/maps';
 import { useEffect, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useBottomTabBarHeight, type BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import {
   ActivityIndicator,
   Alert,
   AppState,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '../components/Button';
 import ScreenHeader from '../components/ScreenHeader';
 import { mapboxToken, missingFirebaseKeys } from '../config/env';
 import type { RootTabParamList } from '../navigation/RootNavigator';
 import { createAccident } from '../services/firestore';
+import { fetchGeocodeSuggestions, type GeocodeSuggestion } from '../services/geocoding';
 import { offlineQueue } from '../services/offlineQueue';
+import { type Theme, useTheme } from '../theme';
 import type { AccidentSeverity, AccidentRecord } from '../types';
 
 const severityOptions: AccidentSeverity[] = [
@@ -38,12 +41,22 @@ const firebaseNotice =
 
 export default function ReportScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
+  const styles = createStyles(theme);
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [timestamp, setTimestamp] = useState('');
   const [selectedCoordinate, setSelectedCoordinate] = useState<[number, number] | null>(
     null
   );
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [locationQuery, setLocationQuery] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<GeocodeSuggestion[]>(
+    []
+  );
+  const [locationSearching, setLocationSearching] = useState(false);
   const [severity, setSeverity] = useState<AccidentSeverity>('Minor');
   const [roadType, setRoadType] = useState('');
   const [weather, setWeather] = useState('');
@@ -51,12 +64,46 @@ export default function ReportScreen() {
   const [casualtyCount, setCasualtyCount] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const canSubmit =
+    latitude.trim().length > 0 &&
+    longitude.trim().length > 0 &&
+    roadType.trim().length > 0 &&
+    weather.trim().length > 0 &&
+    vehicleCount.trim().length > 0 &&
+    casualtyCount.trim().length > 0 &&
+    !submitting;
 
   useEffect(() => {
     if (hasMapboxToken) {
       MapboxGL.setAccessToken(mapboxToken);
     }
   }, []);
+
+
+  useEffect(() => {
+    if (!hasMapboxToken) return;
+    if (locationQuery.trim().length < 3) {
+      setLocationSuggestions([]);
+      return;
+    }
+
+    const handle = setTimeout(() => {
+      setLocationSearching(true);
+      fetchGeocodeSuggestions(
+        locationQuery,
+        mapboxToken,
+        5,
+        userLocation ?? undefined,
+        'ng',
+        [2.676932, 4.1821, 14.678014, 13.885645]
+      )
+        .then((results) => setLocationSuggestions(results))
+        .catch(() => setLocationSuggestions([]))
+        .finally(() => setLocationSearching(false));
+    }, 350);
+
+    return () => clearTimeout(handle);
+  }, [locationQuery]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
@@ -79,6 +126,21 @@ export default function ReportScreen() {
     setSelectedCoordinate([lng, lat]);
     setLatitude(lat.toFixed(6));
     setLongitude(lng.toFixed(6));
+  };
+
+  const handleLocationSuggestion = (suggestion: GeocodeSuggestion) => {
+    setSelectedCoordinate(suggestion.center);
+    setLatitude(suggestion.center[1].toFixed(6));
+    setLongitude(suggestion.center[0].toFixed(6));
+    setLocationQuery(suggestion.place_name);
+    setLocationSuggestions([]);
+  };
+
+  const useCurrentLocation = () => {
+    if (!userLocation) return;
+    setSelectedCoordinate(userLocation);
+    setLatitude(userLocation[1].toFixed(6));
+    setLongitude(userLocation[0].toFixed(6));
   };
 
   const submit = async () => {
@@ -145,10 +207,19 @@ export default function ReportScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <ScreenHeader
-        title="Report Incident"
-        subtitle="Provide details to help build safer roads."
-      />
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: theme.spacing.lg + tabBarHeight },
+        ]}
+      >
+          <ScreenHeader
+            eyebrow="Report"
+            title="Report Incident"
+            subtitle="Provide details to help build safer roads."
+          />
       {!hasMapboxToken ? (
         <View style={styles.banner}>
           <Text style={styles.bannerTitle}>Mapbox not configured</Text>
@@ -169,11 +240,64 @@ export default function ReportScreen() {
       ) : null}
 
       {hasMapboxToken ? (
+        <View style={styles.searchCard}>
+          <Text style={styles.sectionTitle}>Search location</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search a place (e.g., Garki Area 1)"
+            value={locationQuery}
+            onChangeText={setLocationQuery}
+            placeholderTextColor={theme.colors.textSoft}
+          />
+          {locationSearching ? (
+            <Text style={styles.searchHint}>Searching locations...</Text>
+          ) : null}
+          {locationSuggestions.length > 0 ? (
+            <View style={styles.suggestionList}>
+              {locationSuggestions.map((item) => (
+                <Pressable
+                  key={item.id}
+                  onPress={() => handleLocationSuggestion(item)}
+                  style={styles.suggestionItem}
+                >
+                  <Text style={styles.suggestionTitle}>{item.name}</Text>
+                  <Text style={styles.suggestionSubtitle}>{item.place_name}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+          <View style={styles.quickRow}>
+            <Button
+              label="Use current location"
+              variant="secondary"
+              onPress={useCurrentLocation}
+              disabled={!userLocation}
+              fullWidth
+            />
+          </View>
+        </View>
+      ) : null}
+
+      {hasMapboxToken ? (
         <View style={styles.mapCard}>
           <MapboxGL.MapView style={styles.map} onPress={handleMapPress}>
             <MapboxGL.Camera
               zoomLevel={selectedCoordinate ? 15 : 11}
-              centerCoordinate={selectedCoordinate ?? [3.3792, 6.5244]}
+              centerCoordinate={selectedCoordinate ?? [8.6753, 9.082]}
+              minZoomLevel={5}
+              maxBounds={{
+                ne: [14.678014, 13.885645],
+                sw: [2.676932, 4.1821],
+              }}
+            />
+            <MapboxGL.UserLocation
+              visible
+              onUpdate={(location) => {
+                const { longitude, latitude } = location.coords;
+                if (typeof longitude === 'number' && typeof latitude === 'number') {
+                  setUserLocation([longitude, latitude]);
+                }
+              }}
             />
             {selectedCoordinate ? (
               <MapboxGL.PointAnnotation
@@ -186,12 +310,14 @@ export default function ReportScreen() {
         </View>
       ) : null}
 
+      <Text style={styles.sectionTitle}>Location</Text>
       <TextInput
         style={styles.input}
         placeholder="Latitude"
         value={latitude}
         onChangeText={setLatitude}
         keyboardType="numeric"
+        placeholderTextColor={theme.colors.textSoft}
       />
       <TextInput
         style={styles.input}
@@ -199,14 +325,17 @@ export default function ReportScreen() {
         value={longitude}
         onChangeText={setLongitude}
         keyboardType="numeric"
+        placeholderTextColor={theme.colors.textSoft}
       />
       <TextInput
         style={styles.input}
         placeholder="Timestamp (ISO, optional)"
         value={timestamp}
         onChangeText={setTimestamp}
+        placeholderTextColor={theme.colors.textSoft}
       />
 
+      <Text style={styles.sectionTitle}>Incident details</Text>
       <View style={styles.section}>
         <Text style={styles.label}>Severity</Text>
         <View style={styles.row}>
@@ -237,19 +366,23 @@ export default function ReportScreen() {
         placeholder="Road type"
         value={roadType}
         onChangeText={setRoadType}
+        placeholderTextColor={theme.colors.textSoft}
       />
       <TextInput
         style={styles.input}
         placeholder="Weather condition"
         value={weather}
         onChangeText={setWeather}
+        placeholderTextColor={theme.colors.textSoft}
       />
+      <Text style={styles.sectionTitle}>Counts</Text>
       <TextInput
         style={styles.input}
         placeholder="Number of vehicles"
         value={vehicleCount}
         onChangeText={setVehicleCount}
         keyboardType="numeric"
+        placeholderTextColor={theme.colors.textSoft}
       />
       <TextInput
         style={styles.input}
@@ -257,32 +390,38 @@ export default function ReportScreen() {
         value={casualtyCount}
         onChangeText={setCasualtyCount}
         keyboardType="numeric"
+        placeholderTextColor={theme.colors.textSoft}
       />
 
       {submitting ? (
         <View style={styles.loading}>
-          <ActivityIndicator color="#111" />
+          <ActivityIndicator color={theme.colors.accent} />
           <Text style={styles.loadingText}>Submitting...</Text>
         </View>
       ) : null}
 
       <View style={styles.actions}>
-        <Button label="Submit report" onPress={submit} disabled={submitting} />
+        <Button label="Submit report" onPress={submit} disabled={!canSubmit} />
         <Button
           label="Back to map"
           variant="secondary"
           onPress={() => navigation.navigate('Map')}
         />
       </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.bg,
+  },
+  content: {
+    padding: theme.spacing.lg,
+    gap: theme.spacing.sm,
   },
   loading: {
     flexDirection: 'row',
@@ -292,51 +431,87 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 12,
-    color: '#333',
+    color: theme.colors.textMuted,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   banner: {
     marginBottom: 12,
     padding: 10,
-    borderRadius: 8,
-    backgroundColor: '#fff3cd',
+    borderRadius: theme.radius.sm,
+    backgroundColor: '#fff7ed',
     borderWidth: 1,
-    borderColor: '#ffeeba',
+    borderColor: '#fed7aa',
   },
   bannerTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#856404',
+    color: '#9a3412',
   },
   bannerText: {
     marginTop: 4,
     fontSize: 11,
-    color: '#856404',
+    color: '#9a3412',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.sm,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    marginBottom: 12,
+    marginBottom: theme.spacing.sm,
+    backgroundColor: theme.colors.surface,
+    color: theme.colors.text,
   },
   mapCard: {
     marginBottom: 16,
-    borderRadius: 12,
+    borderRadius: theme.radius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#e5e5e5',
-    backgroundColor: '#fff',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
+  searchCard: {
+    marginBottom: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 12,
+    backgroundColor: theme.colors.surfaceAlt,
+    color: theme.colors.text,
+  },
+  searchHint: {
+    marginTop: theme.spacing.sm,
+    fontSize: 11,
+    color: theme.colors.textSoft,
+  },
+  quickRow: {
+    marginTop: theme.spacing.sm,
   },
   map: {
-    height: 180,
+    height: 200,
   },
   mapHint: {
     padding: 10,
     fontSize: 12,
-    color: '#555',
+    color: theme.colors.textMuted,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: theme.colors.border,
   },
   section: {
     marginBottom: 12,
@@ -344,35 +519,59 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 8,
   },
   row: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: theme.spacing.sm,
   },
   chip: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: theme.colors.border,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.surfaceAlt,
   },
   chipSelected: {
-    borderColor: '#111',
-    backgroundColor: '#111',
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.accent,
   },
   chipText: {
     fontSize: 12,
-    color: '#333',
+    color: theme.colors.textMuted,
   },
   chipTextSelected: {
     color: '#fff',
   },
-  actions: {
-    marginTop: 12,
-    gap: 10,
+  suggestionList: {
+    marginTop: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.sm,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.surface,
   },
-});
+  suggestionItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  suggestionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  suggestionSubtitle: {
+    marginTop: 2,
+    fontSize: 11,
+    color: theme.colors.textMuted,
+  },
+  actions: {
+    marginTop: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  });
