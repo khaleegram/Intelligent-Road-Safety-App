@@ -1,11 +1,13 @@
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '../components/Button';
 import ScreenHeader from '../components/ScreenHeader';
 import type { RootTabParamList } from '../navigation/RootNavigator';
+import { offlineQueue } from '../services/offlineQueue';
 import { storage } from '../services/storage';
 import { type Theme, useTheme } from '../theme';
 
@@ -14,11 +16,30 @@ export default function SettingsScreen() {
   const { theme, mode, toggleTheme } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = createStyles(theme);
+  const [queuedCount, setQueuedCount] = useState(0);
+
+  useEffect(() => {
+    offlineQueue.getAll().then((items) => setQueuedCount(items.length));
+  }, []);
 
   const refreshCache = async () => {
     await storage.remove('hotspots_cache_v1');
     await storage.remove('accidents_cache_v1');
     Alert.alert('Cache cleared', 'Local cache cleared. Reload the map to refresh.');
+  };
+
+  const syncNow = async () => {
+    const result = await offlineQueue.sync();
+    const remaining = await offlineQueue.getAll();
+    setQueuedCount(remaining.length);
+    if (result.synced === 0 && result.failed === 0) {
+      Alert.alert('Up to date', 'No queued reports to sync.');
+      return;
+    }
+    Alert.alert(
+      'Sync complete',
+      `Uploaded ${result.synced} report(s). Remaining: ${result.failed}.`
+    );
   };
 
   return (
@@ -59,6 +80,13 @@ export default function SettingsScreen() {
           <Text style={styles.label}>Offline cache</Text>
           <Text style={styles.value}>Hotspots and reports stored locally</Text>
           <Button label="Clear cache" variant="secondary" onPress={refreshCache} />
+        </View>
+        <View style={styles.card}>
+          <Text style={styles.label}>Queued reports</Text>
+          <Text style={styles.value}>
+            {queuedCount} waiting to sync
+          </Text>
+          <Button label="Sync now" variant="secondary" onPress={syncNow} />
         </View>
       </View>
 

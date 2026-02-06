@@ -1,5 +1,5 @@
 import MapboxGL from '@rnmapbox/maps';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { useBottomTabBarHeight, type BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import {
@@ -13,7 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Button from '../components/Button';
 import ScreenHeader from '../components/ScreenHeader';
@@ -31,6 +31,8 @@ const severityOptions: AccidentSeverity[] = [
   'Minor',
   'Damage Only',
 ];
+const roadTypeOptions = ['Urban', 'Highway', 'Residential', 'Rural', 'Intersection', 'Other'];
+const weatherOptions = ['Clear', 'Rain', 'Fog', 'Night', 'Harmattan', 'Other'];
 const hasMapboxToken = mapboxToken.length > 0;
 const mapboxTokenNotice =
   'Mapbox token missing. Set EXPO_PUBLIC_MAPBOX_TOKEN in apps/mobile/.env and rebuild the dev client.';
@@ -42,12 +44,13 @@ const firebaseNotice =
 export default function ReportScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const styles = createStyles(theme);
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [timestamp, setTimestamp] = useState('');
+  const [editCoordinates, setEditCoordinates] = useState(false);
+  const [editTimestamp, setEditTimestamp] = useState(false);
   const [selectedCoordinate, setSelectedCoordinate] = useState<[number, number] | null>(
     null
   );
@@ -58,19 +61,27 @@ export default function ReportScreen() {
   );
   const [locationSearching, setLocationSearching] = useState(false);
   const [severity, setSeverity] = useState<AccidentSeverity>('Minor');
-  const [roadType, setRoadType] = useState('');
-  const [weather, setWeather] = useState('');
-  const [vehicleCount, setVehicleCount] = useState('');
-  const [casualtyCount, setCasualtyCount] = useState('');
+  const [roadTypePreset, setRoadTypePreset] = useState('Urban');
+  const [roadTypeCustom, setRoadTypeCustom] = useState('');
+  const [weatherPreset, setWeatherPreset] = useState('Clear');
+  const [weatherCustom, setWeatherCustom] = useState('');
+  const [vehicleCount, setVehicleCount] = useState(1);
+  const [casualtyCount, setCasualtyCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const roadTypeValue = useMemo(
+    () => (roadTypePreset === 'Other' ? roadTypeCustom.trim() : roadTypePreset),
+    [roadTypeCustom, roadTypePreset]
+  );
+  const weatherValue = useMemo(
+    () => (weatherPreset === 'Other' ? weatherCustom.trim() : weatherPreset),
+    [weatherCustom, weatherPreset]
+  );
   const canSubmit =
     latitude.trim().length > 0 &&
     longitude.trim().length > 0 &&
-    roadType.trim().length > 0 &&
-    weather.trim().length > 0 &&
-    vehicleCount.trim().length > 0 &&
-    casualtyCount.trim().length > 0 &&
+    roadTypeValue.length > 0 &&
+    weatherValue.length > 0 &&
     !submitting;
 
   useEffect(() => {
@@ -126,6 +137,7 @@ export default function ReportScreen() {
     setSelectedCoordinate([lng, lat]);
     setLatitude(lat.toFixed(6));
     setLongitude(lng.toFixed(6));
+    setEditCoordinates(false);
   };
 
   const handleLocationSuggestion = (suggestion: GeocodeSuggestion) => {
@@ -134,6 +146,7 @@ export default function ReportScreen() {
     setLongitude(suggestion.center[0].toFixed(6));
     setLocationQuery(suggestion.place_name);
     setLocationSuggestions([]);
+    setEditCoordinates(false);
   };
 
   const useCurrentLocation = () => {
@@ -141,41 +154,42 @@ export default function ReportScreen() {
     setSelectedCoordinate(userLocation);
     setLatitude(userLocation[1].toFixed(6));
     setLongitude(userLocation[0].toFixed(6));
+    setEditCoordinates(false);
   };
 
   const submit = async () => {
     const lat = Number(latitude);
     const lng = Number(longitude);
-    const vehicles = Number(vehicleCount);
-    const casualties = Number(casualtyCount);
+    const vehicles = vehicleCount;
+    const casualties = casualtyCount;
 
     if (Number.isNaN(lat) || Number.isNaN(lng)) {
       Alert.alert('Invalid location', 'Latitude and longitude must be numbers.');
       return;
     }
 
-    if (!roadType.trim()) {
+    if (!roadTypeValue) {
       Alert.alert('Missing field', 'Road type is required.');
       return;
     }
 
-    if (!weather.trim()) {
+    if (!weatherValue) {
       Alert.alert('Missing field', 'Weather condition is required.');
       return;
     }
 
-    if (Number.isNaN(vehicles) || Number.isNaN(casualties)) {
-      Alert.alert('Invalid counts', 'Vehicle and casualty counts must be numbers.');
+    if (vehicles < 0 || casualties < 0) {
+      Alert.alert('Invalid counts', 'Counts must be zero or greater.');
       return;
     }
 
     const record: AccidentRecord = {
       latitude: lat,
       longitude: lng,
-      timestamp: timestamp.trim() || new Date().toISOString(),
+      timestamp: editTimestamp && timestamp.trim().length > 0 ? timestamp.trim() : new Date().toISOString(),
       severity,
-      road_type: roadType.trim(),
-      weather: weather.trim(),
+      road_type: roadTypeValue,
+      weather: weatherValue,
       vehicle_count: vehicles,
       casualty_count: casualties,
       created_at: new Date().toISOString(),
@@ -188,11 +202,14 @@ export default function ReportScreen() {
       setLatitude('');
       setLongitude('');
       setTimestamp('');
+      setEditTimestamp(false);
       setSeverity('Minor');
-      setRoadType('');
-      setWeather('');
-      setVehicleCount('');
-      setCasualtyCount('');
+      setRoadTypePreset('Urban');
+      setRoadTypeCustom('');
+      setWeatherPreset('Clear');
+      setWeatherCustom('');
+      setVehicleCount(1);
+      setCasualtyCount(0);
     } catch (error) {
       await offlineQueue.enqueue(record);
       Alert.alert(
@@ -254,9 +271,9 @@ export default function ReportScreen() {
           ) : null}
           {locationSuggestions.length > 0 ? (
             <View style={styles.suggestionList}>
-              {locationSuggestions.map((item) => (
+              {locationSuggestions.map((item, index) => (
                 <Pressable
-                  key={item.id}
+                  key={`${item.id}-${index}`}
                   onPress={() => handleLocationSuggestion(item)}
                   style={styles.suggestionItem}
                 >
@@ -311,29 +328,76 @@ export default function ReportScreen() {
       ) : null}
 
       <Text style={styles.sectionTitle}>Location</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Latitude"
-        value={latitude}
-        onChangeText={setLatitude}
-        keyboardType="numeric"
-        placeholderTextColor={theme.colors.textSoft}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Longitude"
-        value={longitude}
-        onChangeText={setLongitude}
-        keyboardType="numeric"
-        placeholderTextColor={theme.colors.textSoft}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Timestamp (ISO, optional)"
-        value={timestamp}
-        onChangeText={setTimestamp}
-        placeholderTextColor={theme.colors.textSoft}
-      />
+      <View style={styles.inlineHeader}>
+        <Text style={styles.inlineTitle}>Coordinates</Text>
+        <Pressable
+          style={styles.inlineAction}
+          onPress={() => setEditCoordinates((prev) => !prev)}
+        >
+          <Text style={styles.inlineActionText}>
+            {editCoordinates ? 'Lock' : 'Edit'}
+          </Text>
+        </Pressable>
+      </View>
+      <View style={styles.coordinateRow}>
+        <View style={styles.coordinatePill}>
+          <Text style={styles.coordinateLabel}>Lat</Text>
+          <Text style={styles.coordinateValue}>
+            {latitude.trim().length > 0 ? latitude : '--'}
+          </Text>
+        </View>
+        <View style={styles.coordinatePill}>
+          <Text style={styles.coordinateLabel}>Lng</Text>
+          <Text style={styles.coordinateValue}>
+            {longitude.trim().length > 0 ? longitude : '--'}
+          </Text>
+        </View>
+      </View>
+      {editCoordinates ? (
+        <>
+          <TextInput
+            style={styles.input}
+            placeholder="Latitude"
+            value={latitude}
+            onChangeText={setLatitude}
+            keyboardType="numeric"
+            placeholderTextColor={theme.colors.textSoft}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Longitude"
+            value={longitude}
+            onChangeText={setLongitude}
+            keyboardType="numeric"
+            placeholderTextColor={theme.colors.textSoft}
+          />
+        </>
+      ) : null}
+      <View style={styles.inlineHeader}>
+        <Text style={styles.inlineTitle}>Time of incident</Text>
+        <Pressable
+          style={styles.inlineAction}
+          onPress={() => setEditTimestamp((prev) => !prev)}
+        >
+          <Text style={styles.inlineActionText}>
+            {editTimestamp ? 'Use now' : 'Set time'}
+          </Text>
+        </Pressable>
+      </View>
+      <Text style={styles.inlineHint}>
+        {editTimestamp && timestamp.trim().length > 0
+          ? timestamp.trim()
+          : 'Now'}
+      </Text>
+      {editTimestamp ? (
+        <TextInput
+          style={styles.input}
+          placeholder="Timestamp (ISO, optional)"
+          value={timestamp}
+          onChangeText={setTimestamp}
+          placeholderTextColor={theme.colors.textSoft}
+        />
+      ) : null}
 
       <Text style={styles.sectionTitle}>Incident details</Text>
       <View style={styles.section}>
@@ -361,37 +425,115 @@ export default function ReportScreen() {
         </View>
       </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Road type"
-        value={roadType}
-        onChangeText={setRoadType}
-        placeholderTextColor={theme.colors.textSoft}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Weather condition"
-        value={weather}
-        onChangeText={setWeather}
-        placeholderTextColor={theme.colors.textSoft}
-      />
+      <Text style={styles.sectionTitle}>Road type</Text>
+      <View style={styles.row}>
+        {roadTypeOptions.map((option) => (
+          <Pressable
+            key={option}
+            style={[
+              styles.chip,
+              roadTypePreset === option && styles.chipSelected,
+            ]}
+            onPress={() => {
+              setRoadTypePreset(option);
+              if (option !== 'Other') {
+                setRoadTypeCustom('');
+              }
+            }}
+          >
+            <Text
+              style={[
+                styles.chipText,
+                roadTypePreset === option && styles.chipTextSelected,
+              ]}
+            >
+              {option}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {roadTypePreset === 'Other' ? (
+        <TextInput
+          style={styles.input}
+          placeholder="Describe road type"
+          value={roadTypeCustom}
+          onChangeText={setRoadTypeCustom}
+          placeholderTextColor={theme.colors.textSoft}
+        />
+      ) : null}
+      <Text style={styles.sectionTitle}>Weather</Text>
+      <View style={styles.row}>
+        {weatherOptions.map((option) => (
+          <Pressable
+            key={option}
+            style={[
+              styles.chip,
+              weatherPreset === option && styles.chipSelected,
+            ]}
+            onPress={() => {
+              setWeatherPreset(option);
+              if (option !== 'Other') {
+                setWeatherCustom('');
+              }
+            }}
+          >
+            <Text
+              style={[
+                styles.chipText,
+                weatherPreset === option && styles.chipTextSelected,
+              ]}
+            >
+              {option}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {weatherPreset === 'Other' ? (
+        <TextInput
+          style={styles.input}
+          placeholder="Describe weather"
+          value={weatherCustom}
+          onChangeText={setWeatherCustom}
+          placeholderTextColor={theme.colors.textSoft}
+        />
+      ) : null}
       <Text style={styles.sectionTitle}>Counts</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Number of vehicles"
-        value={vehicleCount}
-        onChangeText={setVehicleCount}
-        keyboardType="numeric"
-        placeholderTextColor={theme.colors.textSoft}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Number of casualties"
-        value={casualtyCount}
-        onChangeText={setCasualtyCount}
-        keyboardType="numeric"
-        placeholderTextColor={theme.colors.textSoft}
-      />
+      <View style={styles.counterRow}>
+        <Text style={styles.counterLabel}>Vehicles involved</Text>
+        <View style={styles.counterControls}>
+          <Pressable
+            style={styles.counterButton}
+            onPress={() => setVehicleCount((value) => Math.max(0, value - 1))}
+          >
+            <Text style={styles.counterButtonText}>-</Text>
+          </Pressable>
+          <Text style={styles.counterValue}>{vehicleCount}</Text>
+          <Pressable
+            style={styles.counterButton}
+            onPress={() => setVehicleCount((value) => value + 1)}
+          >
+            <Text style={styles.counterButtonText}>+</Text>
+          </Pressable>
+        </View>
+      </View>
+      <View style={styles.counterRow}>
+        <Text style={styles.counterLabel}>Casualties</Text>
+        <View style={styles.counterControls}>
+          <Pressable
+            style={styles.counterButton}
+            onPress={() => setCasualtyCount((value) => Math.max(0, value - 1))}
+          >
+            <Text style={styles.counterButtonText}>-</Text>
+          </Pressable>
+          <Text style={styles.counterValue}>{casualtyCount}</Text>
+          <Pressable
+            style={styles.counterButton}
+            onPress={() => setCasualtyCount((value) => value + 1)}
+          >
+            <Text style={styles.counterButtonText}>+</Text>
+          </Pressable>
+        </View>
+      </View>
 
       {submitting ? (
         <View style={styles.loading}>
@@ -422,6 +564,58 @@ const createStyles = (theme: Theme) =>
   content: {
     padding: theme.spacing.lg,
     gap: theme.spacing.sm,
+  },
+  inlineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.xs,
+  },
+  inlineTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  inlineAction: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceAlt,
+  },
+  inlineActionText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  inlineHint: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    marginBottom: theme.spacing.xs,
+  },
+  coordinateRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  coordinatePill: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
+  coordinateLabel: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
+  },
+  coordinateValue: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.text,
   },
   loading: {
     flexDirection: 'row',
@@ -526,6 +720,45 @@ const createStyles = (theme: Theme) =>
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: theme.spacing.sm,
+  },
+  counterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  counterLabel: {
+    fontSize: 12,
+    color: theme.colors.text,
+  },
+  counterControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  counterButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surfaceAlt,
+  },
+  counterButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  counterValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    minWidth: 24,
+    textAlign: 'center',
   },
   chip: {
     borderWidth: 1,

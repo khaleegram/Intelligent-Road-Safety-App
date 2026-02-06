@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -43,11 +43,18 @@ if (hasMapboxToken) {
   MapboxGL.setAccessToken(mapboxToken);
 }
 
-const getSeverityColors = (theme: Theme) => ({
-  Fatal: theme.colors.danger,
-  Critical: theme.colors.accent,
-  Minor: theme.colors.warning,
-  'Damage Only': theme.colors.textSoft,
+const getSeverityColors = () => ({
+  Fatal: '#e11d48',
+  Critical: '#16a34a',
+  Minor: '#facc15',
+  'Damage Only': '#111827',
+});
+
+const getSeverityIconColors = () => ({
+  Fatal: '#ffffff',
+  Critical: '#ffffff',
+  Minor: '#111827',
+  'Damage Only': '#ffffff',
 });
 
 const defaultCenter: [number, number] = [8.6753, 9.082];
@@ -114,12 +121,15 @@ export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const styles = createStyles(theme);
-  const severityColors = getSeverityColors(theme);
+  const severityColors = getSeverityColors();
+  const severityIconColors = getSeverityIconColors();
   const scrollRef = useRef<ScrollView>(null);
+  const lastHotspotTapRef = useRef(0);
   const cameraRef = useRef<CameraRef>(null);
   const [hotspots, setHotspots] = useState<HotspotRecord[]>([]);
   const [accidents, setAccidents] = useState<AccidentRecord[]>([]);
   const [selectedHotspot, setSelectedHotspot] = useState<HotspotRecord | null>(null);
+  const [hotspotCallout, setHotspotCallout] = useState<{ hotspot: HotspotRecord; x: number; y: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
@@ -139,6 +149,7 @@ export default function MapScreen() {
   const [routePickMode, setRoutePickMode] = useState(false);
   const [routeSearchFocused, setRouteSearchFocused] = useState(false);
   const [mapSectionHeight, setMapSectionHeight] = useState(0);
+  const [mapLayout, setMapLayout] = useState({ width: 0, height: 0 });
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState<
@@ -351,6 +362,13 @@ export default function MapScreen() {
   };
 
   const handleMapPress = (event: MapboxGL.OnPressEvent) => {
+    if (Date.now() - lastHotspotTapRef.current < 300) {
+      return;
+    }
+    if (selectedHotspot) {
+      setSelectedHotspot(null);
+      setHotspotCallout(null);
+    }
     if (!routePickMode) return;
     const coords = event.geometry?.coordinates;
     if (!coords || coords.length < 2) return;
@@ -382,11 +400,47 @@ export default function MapScreen() {
         })
       : [];
 
+  const accidentsGeoJson = useMemo(
+    () => ({
+      type: 'FeatureCollection',
+      features: accidents.map((accident) => ({
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'Point',
+          coordinates: [accident.longitude, accident.latitude],
+        },
+      })),
+    }),
+    [accidents]
+  );
+
+  const hotspotsGeoJson = useMemo(
+    () => ({
+      type: 'FeatureCollection',
+      features: hotspots.map((hotspot) => ({
+        type: 'Feature',
+        properties: {
+          area_id: hotspot.area_id,
+          severity: hotspot.severity_level,
+          color: severityColors[hotspot.severity_level],
+          iconColor: severityIconColors[hotspot.severity_level],
+        },
+        geometry: {
+          type: 'Point',
+          coordinates: [hotspot.center_lng, hotspot.center_lat],
+        },
+      })),
+    }),
+    [hotspots, severityColors, severityIconColors]
+  );
+
   const mapContent = (
     <View style={styles.mapStack} pointerEvents="box-none">
       {hasMapboxToken ? (
         <MapboxGL.MapView
           style={styles.map}
+          surfaceView={false}
           onPress={handleMapPress}
           onTouchStart={() => setScrollEnabled(false)}
           onTouchEnd={() => setScrollEnabled(true)}
@@ -435,30 +489,85 @@ export default function MapScreen() {
               />
             </MapboxGL.ShapeSource>
           ) : null}
-          {accidents.map((accident) => (
-            <MapboxGL.PointAnnotation
-              key={accident.id ?? `${accident.latitude}-${accident.longitude}`}
-              id={accident.id ?? `${accident.latitude}-${accident.longitude}`}
-              coordinate={[accident.longitude, accident.latitude]}
+          {accidents.length > 0 ? (
+            <MapboxGL.ShapeSource
+              id="accidents-source"
+              shape={accidentsGeoJson}
+              cluster
+              clusterRadius={28}
+              clusterMaxZoom={13}
             >
-              <View style={styles.accidentMarker} />
-            </MapboxGL.PointAnnotation>
-          ))}
-          {hotspots.map((hotspot) => (
-            <MapboxGL.PointAnnotation
-              key={hotspot.area_id}
-              id={hotspot.area_id}
-              coordinate={[hotspot.center_lng, hotspot.center_lat]}
-              onSelected={() => setSelectedHotspot(hotspot)}
-            >
-              <View
-                style={[
-                  styles.marker,
-                  { backgroundColor: severityColors[hotspot.severity_level] },
-                ]}
+              <MapboxGL.CircleLayer
+                id="accidents-cluster"
+                filter={['has', 'point_count']}
+                style={{
+                  circleColor: theme.colors.info,
+                  circleRadius: 14,
+                  circleOpacity: 0.8,
+                }}
               />
-            </MapboxGL.PointAnnotation>
-          ))}
+              <MapboxGL.SymbolLayer
+                id="accidents-cluster-count"
+                filter={['has', 'point_count']}
+                style={{
+                  textField: ['get', 'point_count_abbreviated'],
+                  textSize: 11,
+                  textColor: '#fff',
+                }}
+              />
+              <MapboxGL.CircleLayer
+                id="accidents-unclustered"
+                filter={['!', ['has', 'point_count']]}
+                style={{
+                  circleColor: theme.colors.info,
+                  circleRadius: 3,
+                  circleOpacity: 0.9,
+                  circleStrokeColor: theme.colors.surface,
+                  circleStrokeWidth: 1,
+                }}
+              />
+            </MapboxGL.ShapeSource>
+          ) : null}
+          {hotspots.length > 0 ? (
+            <MapboxGL.ShapeSource
+              id="hotspots-source"
+              shape={hotspotsGeoJson}
+              onPress={(event) => {
+                const feature = event.features?.[0];
+                const areaId = feature?.properties?.area_id as string | undefined;
+                if (!areaId) return;
+                const found = hotspots.find((item) => item.area_id === areaId);
+                if (found) {
+                  lastHotspotTapRef.current = Date.now();
+                  setSelectedHotspot(found);
+                  const point = event.point ?? { x: 0, y: 0 };
+                  setHotspotCallout({ hotspot: found, x: point.x, y: point.y });
+                }
+              }}
+            >
+              <MapboxGL.CircleLayer
+                id="hotspot-circles"
+                style={{
+                  circleColor: ['get', 'color'],
+                  circleRadius: 16,
+                  circleOpacity: 0.95,
+                  circleStrokeColor: theme.colors.surface,
+                  circleStrokeWidth: 2,
+                }}
+              />
+              <MapboxGL.SymbolLayer
+                id="hotspot-icon"
+                style={{
+                  textField: '!',
+                  textSize: 14,
+                  textColor: ['get', 'iconColor'],
+                  textAllowOverlap: true,
+                  textIgnorePlacement: true,
+                }}
+              />
+            </MapboxGL.ShapeSource>
+          ) : null}
+          
         </MapboxGL.MapView>
       ) : (
         <View style={styles.mapPlaceholder}>
@@ -469,6 +578,32 @@ export default function MapScreen() {
           </Text>
         </View>
       )}
+      {hotspotCallout ? (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.calloutOverlay,
+            {
+              left: Math.max(8, hotspotCallout.x - 220),
+              top: Math.max(8, Math.min(hotspotCallout.y - 140, mapLayout.height - 140)),
+            },
+          ]}
+        >
+          <View style={styles.callout}>
+            <Text style={styles.calloutTitle}>Hotspot</Text>
+            <Text style={styles.calloutText}>
+              Severity: {hotspotCallout.hotspot.severity_level}
+            </Text>
+            <Text style={styles.calloutText}>
+              Accidents: {hotspotCallout.hotspot.accident_count}
+            </Text>
+            <Text style={styles.calloutText}>
+              Risk score: {hotspotCallout.hotspot.risk_score}
+            </Text>
+          </View>
+          <View style={styles.calloutArrow} />
+        </View>
+      ) : null}
       {hasMapboxToken ? (
         <View style={styles.fabStack} pointerEvents="box-none">
           <Pressable
@@ -529,7 +664,13 @@ export default function MapScreen() {
           <View
             style={styles.mapSection}
             pointerEvents="box-none"
-            onLayout={(event) => setMapSectionHeight(event.nativeEvent.layout.height)}
+            onLayout={(event) => {
+              setMapSectionHeight(event.nativeEvent.layout.height);
+              setMapLayout({
+                width: event.nativeEvent.layout.width,
+                height: event.nativeEvent.layout.height,
+              });
+            }}
           >
             {mapContent}
           </View>
@@ -579,7 +720,9 @@ export default function MapScreen() {
             </View>
             <View style={styles.legend}>
               <View style={styles.legendItem}>
-                <View style={[styles.marker, styles.legendMarker]} />
+                <View style={[styles.marker, styles.legendMarker]}>
+                  <Ionicons name="warning" size={10} color="#ffffff" />
+                </View>
                 <Text style={styles.legendText}>Hotspot (severity)</Text>
               </View>
               <View style={styles.legendItem}>
@@ -615,9 +758,9 @@ export default function MapScreen() {
             ) : null}
             {routeSuggestions.length > 0 ? (
               <View style={styles.suggestionList}>
-                {routeSuggestions.map((item) => (
+                {routeSuggestions.map((item, index) => (
                   <Pressable
-                    key={item.id}
+                    key={`${item.id}-${index}`}
                     onPress={() => handleRouteSuggestion(item)}
                     style={styles.suggestionItem}
                   >
@@ -1065,11 +1208,50 @@ const createStyles = (theme: Theme) =>
     color: theme.colors.textMuted,
     marginBottom: 2,
   },
+  callout: {
+    minWidth: 160,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  calloutOverlay: {
+    position: 'absolute',
+    width: 180,
+    zIndex: 10,
+    elevation: 10,
+    alignItems: 'center',
+  },
+  calloutArrow: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderTopWidth: 12,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: theme.colors.surface,
+    marginTop: -1,
+  },
+  calloutTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  calloutText: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
+  },
   marker: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     borderWidth: 2,
     borderColor: theme.colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   });

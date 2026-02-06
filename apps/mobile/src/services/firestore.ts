@@ -4,7 +4,6 @@ import {
   getDocs,
   orderBy,
   query,
-  serverTimestamp,
 } from 'firebase/firestore';
 
 import { db } from './firebase';
@@ -62,7 +61,6 @@ export async function createAccident(input: AccidentRecord): Promise<string> {
     const payload = {
       ...input,
       created_at: input.created_at ?? new Date().toISOString(),
-      server_created_at: serverTimestamp(),
     };
 
     const docRef = await addDoc(accidentsCollection, payload);
