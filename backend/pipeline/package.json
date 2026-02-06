@@ -1,0 +1,11 @@
+{
+  "name": "backend-pipeline",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "hotspots": "node compute-hotspots.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.2"
+  }
+}

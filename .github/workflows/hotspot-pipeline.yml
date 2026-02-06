@@ -1,0 +1,33 @@
+name: Hotspot Pipeline
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  run-hotspots:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        working-directory: backend/pipeline
+        run: npm install --omit=dev
+
+      - name: Run hotspot pipeline
+        working-directory: backend/pipeline
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          HOTSPOT_THRESHOLD: '3'
+          HOTSPOT_GRID: '0.01'
+          HOTSPOT_TIME_BUCKET: 'all'
+        run: node compute-hotspots.mjs --threshold 3 --grid 0.01
