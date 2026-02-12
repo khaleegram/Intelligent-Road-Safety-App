@@ -25,6 +25,7 @@ import { fetchDirections } from '../services/directions';
 import { fetchAccidents, fetchHotspots } from '../services/firestore';
 import { fetchGeocodeSuggestions, type GeocodeSuggestion } from '../services/geocoding';
 import { computeHotspotsFromAccidents } from '../services/hotspotLogic';
+import { sendLocalRiskAlert } from '../services/notifications';
 import { useAdminAccess } from '../hooks/useAdminAccess';
 import { useI18n } from '../i18n';
 import { type Theme, useTheme } from '../theme';
@@ -405,6 +406,24 @@ export default function MapScreen() {
         })
       : [];
 
+  const routeRiskScore = useMemo(() => {
+    if (!routeDestination || warningHotspots.length === 0) {
+      return 0;
+    }
+    const score = warningHotspots.reduce((total, hotspot) => {
+      const weight =
+        hotspot.severity_level === 'Fatal'
+          ? 4
+          : hotspot.severity_level === 'Critical'
+            ? 3
+            : hotspot.severity_level === 'Minor'
+              ? 2
+              : 1;
+      return total + weight * hotspot.accident_count;
+    }, 0);
+    return score;
+  }, [routeDestination, warningHotspots]);
+
   useEffect(() => {
     if (!userLocation || warningHotspots.length === 0) {
       setRouteHotspotAlert(null);
@@ -426,6 +445,11 @@ export default function MapScreen() {
     }
     notifiedHotspotsRef.current.add(nearby.area_id);
     setRouteHotspotAlert(nearby);
+    sendLocalRiskAlert({
+      title: t('map.routeAlertTitle'),
+      body: t('map.routeAlertText', { severity: nearby.severity_level }),
+      data: { hotspotId: nearby.area_id },
+    }).catch((error) => console.error('Risk alert notification failed', error));
   }, [userLocation, warningHotspots]);
 
   const accidentsGeoJson = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(
@@ -863,6 +887,11 @@ export default function MapScreen() {
             ) : null}
           {routeDestination && warningHotspots.length === 0 ? (
             <Text style={styles.routeOkText}>{t('map.routeOk')}</Text>
+          ) : null}
+          {routeDestination ? (
+            <Text style={styles.routeDistance}>
+              Route risk score: {routeRiskScore}
+            </Text>
           ) : null}
           {routeDestination && warningHotspots.length > 0 ? (
             <View style={styles.routeHotspotList}>
