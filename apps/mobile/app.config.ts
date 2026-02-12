@@ -19,6 +19,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     extra: {
       ...config.extra,
       mapboxToken: process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '',
+      adminEmails:
+        process.env.EXPO_PUBLIC_ADMIN_EMAILS?.split(',')
+          .map((email) => email.trim())
+          .filter(Boolean) ?? [],
       firebase: {
         apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? '',
         authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ?? '',
