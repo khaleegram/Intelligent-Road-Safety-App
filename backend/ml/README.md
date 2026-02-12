@@ -40,6 +40,10 @@ Outputs:
 - `backend/ml/model_registry/model_<timestamp>.json`
 
 **Note:** This baseline is only to validate the pipeline, not production ML.
+Treat all outputs as advisory until you add:
+- versioned model registry with promotion/rollback
+- evaluation thresholds (precision/recall targets) on held-out data
+- post-deploy monitoring and drift checks
 
 ## Credentials
 Uses the same credential resolution as the pipeline:

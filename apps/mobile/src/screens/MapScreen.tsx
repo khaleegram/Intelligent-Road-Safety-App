@@ -1,5 +1,4 @@
 import MapboxGL from '@rnmapbox/maps';
-import type { CameraRef } from '@rnmapbox/maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -127,7 +126,7 @@ export default function MapScreen() {
   const severityIconColors = getSeverityIconColors();
   const scrollRef = useRef<ScrollView>(null);
   const lastHotspotTapRef = useRef(0);
-  const cameraRef = useRef<CameraRef>(null);
+  const cameraRef = useRef<any>(null);
   const [hotspots, setHotspots] = useState<HotspotRecord[]>([]);
   const [accidents, setAccidents] = useState<AccidentRecord[]>([]);
   const [selectedHotspot, setSelectedHotspot] = useState<HotspotRecord | null>(null);
@@ -366,7 +365,7 @@ export default function MapScreen() {
     });
   };
 
-  const handleMapPress = (event: MapboxGL.OnPressEvent) => {
+  const handleMapPress = (event: any) => {
     if (Date.now() - lastHotspotTapRef.current < 300) {
       return;
     }
@@ -382,12 +381,13 @@ export default function MapScreen() {
   };
 
   const routeStart = userLocation ?? defaultCenter;
-  const routeLine =
+  const routeLine: GeoJSON.Feature<GeoJSON.LineString> | null =
     routeDestination != null
       ? {
-          type: 'Feature',
+          type: 'Feature' as const,
+          properties: {},
           geometry: {
-            type: 'LineString',
+            type: 'LineString' as const,
             coordinates: routeGeometry?.coordinates ?? [routeStart, routeDestination],
           },
         }
@@ -428,14 +428,14 @@ export default function MapScreen() {
     setRouteHotspotAlert(nearby);
   }, [userLocation, warningHotspots]);
 
-  const accidentsGeoJson = useMemo(
+  const accidentsGeoJson = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(
     () => ({
-      type: 'FeatureCollection',
+      type: 'FeatureCollection' as const,
       features: accidents.map((accident) => ({
-        type: 'Feature',
+        type: 'Feature' as const,
         properties: {},
         geometry: {
-          type: 'Point',
+          type: 'Point' as const,
           coordinates: [accident.longitude, accident.latitude],
         },
       })),
@@ -443,11 +443,11 @@ export default function MapScreen() {
     [accidents]
   );
 
-  const hotspotsGeoJson = useMemo(
+  const hotspotsGeoJson = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(
     () => ({
-      type: 'FeatureCollection',
+      type: 'FeatureCollection' as const,
       features: hotspots.map((hotspot) => ({
-        type: 'Feature',
+        type: 'Feature' as const,
         properties: {
           area_id: hotspot.area_id,
           severity: hotspot.severity_level,
@@ -455,7 +455,7 @@ export default function MapScreen() {
           iconColor: severityIconColors[hotspot.severity_level],
         },
         geometry: {
-          type: 'Point',
+          type: 'Point' as const,
           coordinates: [hotspot.center_lng, hotspot.center_lat],
         },
       })),
@@ -523,7 +523,6 @@ export default function MapScreen() {
               shape={accidentsGeoJson}
               cluster
               clusterRadius={28}
-              clusterMaxZoom={13}
             >
               <MapboxGL.CircleLayer
                 id="accidents-cluster"
@@ -685,9 +684,9 @@ export default function MapScreen() {
             subtitle={t('map.subtitle')}
             mode="public"
             isAdmin={isAdmin}
-            onToggle={(next) => {
+                onToggle={(next) => {
               if (next === 'admin') {
-                navigation.navigate('Admin');
+                navigation.navigate('Admin', undefined);
               }
             }}
           />
