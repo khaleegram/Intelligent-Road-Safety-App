@@ -37,10 +37,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+backend/firebase/firestore-debug.log
 
 # Caches
 .cache/
 .metro-health-check*
+apps/mobile/.test-dist/
 
 # Coverage
 coverage/
