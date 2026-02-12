@@ -1,14 +1,16 @@
 import {
-  addDoc,
   collection,
+  doc,
   getDocs,
   orderBy,
   query,
+  runTransaction,
 } from 'firebase/firestore';
 
 import { auth, db } from './firebase';
 import type { AccidentRecord, HotspotRecord, UserProfile } from '../types';
 import { storage } from './storage';
+import { generateRequestId } from './requestId';
 
 const accidentsCollection = collection(db, 'accidents');
 const hotspotsCollection = collection(db, 'hotspots');
@@ -59,15 +61,27 @@ export async function fetchHotspots(): Promise<HotspotRecord[]> {
 
 export async function createAccident(input: AccidentRecord): Promise<string> {
   try {
-    const reporterUid = auth.currentUser?.uid ?? input.reporter_uid;
+    const reporterUid = auth.currentUser?.uid;
+    if (!reporterUid) {
+      throw new Error('Sign in is required to submit a report.');
+    }
+
+    const requestId = input.request_id ?? generateRequestId();
+    const accidentRef = doc(db, 'accidents', requestId);
     const payload = {
       ...input,
+      request_id: requestId,
       created_at: input.created_at ?? new Date().toISOString(),
-      ...(reporterUid ? { reporter_uid: reporterUid } : {}),
+      reporter_uid: reporterUid,
     };
 
-    const docRef = await addDoc(accidentsCollection, payload);
-    return docRef.id;
+    await runTransaction(db, async (transaction) => {
+      const existing = await transaction.get(accidentRef);
+      if (!existing.exists()) {
+        transaction.set(accidentRef, payload);
+      }
+    });
+    return requestId;
   } catch (error) {
     console.error('Failed to create accident', error);
     throw new Error('Unable to submit accident report. Try again.');

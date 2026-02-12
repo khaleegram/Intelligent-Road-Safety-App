@@ -13,10 +13,10 @@ type FirebaseConfig = {
 type AppExtra = {
   mapboxToken?: string;
   firebase?: Partial<FirebaseConfig>;
-  adminEmails?: string[];
 };
 
-const extra = (Constants.expoConfig?.extra ?? Constants.manifest?.extra ?? {}) as AppExtra;
+const manifestExtra = (Constants.manifest as { extra?: AppExtra } | null)?.extra;
+const extra = (Constants.expoConfig?.extra ?? manifestExtra ?? {}) as AppExtra;
 
 const getEnvValue = (key: string, fallback = '') => {
   return process.env[key] ?? fallback;
@@ -51,12 +51,6 @@ export const firebaseConfig: FirebaseConfig = {
     extra.firebase?.measurementId ?? ''
   ),
 };
-
-export const adminEmails = getEnvValue('EXPO_PUBLIC_ADMIN_EMAILS', '')
-  .split(',')
-  .map((email) => email.trim().toLowerCase())
-  .filter(Boolean)
-  .concat((extra.adminEmails ?? []).map((email) => email.toLowerCase()));
 
 export const missingFirebaseKeys = [
   !firebaseConfig.apiKey && 'EXPO_PUBLIC_FIREBASE_API_KEY',

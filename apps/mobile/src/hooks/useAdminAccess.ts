@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
 
-import { adminEmails } from '../config/env';
-import { auth, db } from '../services/firebase';
+import { auth } from '../services/firebase';
+import { isUserAdmin } from '../services/userProfile';
 
 type AdminAccessState = {
   user: User | null;
@@ -19,18 +18,12 @@ export const useAdminAccess = (): AdminAccessState => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      if (!currentUser?.email) {
+      if (!currentUser) {
         setIsAdmin(false);
         setLoading(false);
         return;
       }
-      if (adminEmails.includes(currentUser.email.toLowerCase())) {
-        setIsAdmin(true);
-        setLoading(false);
-        return;
-      }
-      const snapshot = await getDoc(doc(db, 'users', currentUser.uid));
-      setIsAdmin(snapshot.exists() && snapshot.data()?.is_admin === true);
+      setIsAdmin(await isUserAdmin(currentUser.uid));
       setLoading(false);
     });
     return () => unsubscribe();

@@ -1,4 +1,4 @@
-// Firestore rules (hardened for idempotent accident submissions)
+// Firestore rules (confidential research data)
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -26,7 +26,8 @@ service cloud.firestore {
           'weather',
           'vehicle_count',
           'casualty_count',
-          'created_at'
+          'created_at',
+          'reporter_uid'
         ]) &&
         data.keys().hasOnly([
           'request_id',
@@ -39,12 +40,7 @@ service cloud.firestore {
           'vehicle_count',
           'casualty_count',
           'created_at',
-          'server_created_at',
-          'reporter_uid',
-          'verified',
-          'verified_by',
-          'verified_at',
-          'notes'
+          'reporter_uid'
         ]) &&
         data.request_id is string &&
         data.request_id == accidentId &&
@@ -57,18 +53,14 @@ service cloud.firestore {
         isNumber(data.vehicle_count) &&
         isNumber(data.casualty_count) &&
         data.created_at is string &&
-        (!('reporter_uid' in data) || data.reporter_uid is string) &&
-        (!('reporter_uid' in data) || !isSignedIn() || data.reporter_uid == request.auth.uid) &&
-        (!('server_created_at' in data) || data.server_created_at is timestamp) &&
-        (!('verified' in data) || data.verified is bool) &&
-        (!('verified_by' in data) || data.verified_by is string) &&
-        (!('verified_at' in data) || data.verified_at is timestamp) &&
-        (!('notes' in data) || data.notes is string);
+        data.reporter_uid is string &&
+        isSignedIn() &&
+        data.reporter_uid == request.auth.uid;
     }
 
     match /accidents/{accidentId} {
-      allow read: if true;
-      allow create: if isValidAccident(request.resource.data, accidentId);
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidAccident(request.resource.data, accidentId);
       allow update: if isAdmin() &&
         request.resource.data.diff(resource.data).changedKeys().hasOnly([
           'verified',
@@ -80,7 +72,7 @@ service cloud.firestore {
     }
 
     match /hotspots/{hotspotId} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow write: if false;
     }
 

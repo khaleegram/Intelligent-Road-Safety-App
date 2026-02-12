@@ -31,6 +31,8 @@
   "common.warning": "Warning",
   "common.email": "Email",
   "common.password": "Password",
+  "auth.title": "Sign in to RoadSafe",
+  "auth.subtitle": "Access is restricted to approved research participants.",
   "language.en": "English",
   "language.ha": "Hausa",
   "language.yo": "Yoruba",

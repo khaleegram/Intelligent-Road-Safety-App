@@ -2,6 +2,7 @@ export type AccidentSeverity = 'Fatal' | 'Critical' | 'Minor' | 'Damage Only';
 
 export type AccidentRecord = {
   id?: string;
+  request_id?: string;
   latitude: number;
   longitude: number;
   timestamp: string;
@@ -12,6 +13,10 @@ export type AccidentRecord = {
   casualty_count: number;
   created_at: string;
   reporter_uid?: string;
+  verified?: boolean;
+  verified_by?: string;
+  verified_at?: string;
+  notes?: string;
 };
 
 export type HotspotSeverity = 'Fatal' | 'Critical' | 'Minor' | 'Damage Only';

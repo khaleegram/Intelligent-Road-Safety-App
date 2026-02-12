@@ -1,0 +1,152 @@
+import { useState } from 'react';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+
+import Button from '../components/Button';
+import { auth } from '../services/firebase';
+import { upsertUserProfile } from '../services/userProfile';
+import { useI18n } from '../i18n';
+import { type Theme, useTheme } from '../theme';
+
+export default function AuthScreen() {
+  const { theme } = useTheme();
+  const { t } = useI18n();
+  const styles = createStyles(theme);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const validate = () => {
+    if (!email.trim() || !password) {
+      Alert.alert(t('settings.missingCredsTitle'), t('settings.missingCredsText'));
+      return false;
+    }
+    return true;
+  };
+
+  const handleSignIn = async () => {
+    if (!validate()) return;
+    setSubmitting(true);
+    try {
+      const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      await upsertUserProfile(credential.user);
+      setPassword('');
+    } catch (error) {
+      console.error(error);
+      Alert.alert(t('settings.signInFailedTitle'), t('settings.signInFailedText'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateAccount = async () => {
+    if (!validate()) return;
+    setSubmitting(true);
+    try {
+      const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      await upsertUserProfile(credential.user);
+      setPassword('');
+      Alert.alert(t('settings.accountCreatedTitle'), t('settings.accountCreatedText'));
+    } catch (error) {
+      console.error(error);
+      Alert.alert(t('settings.signUpFailedTitle'), t('settings.signUpFailedText'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <KeyboardAvoidingView
+        style={styles.wrapper}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.card}>
+          <Text style={styles.title}>{t('auth.title')}</Text>
+          <Text style={styles.subtitle}>{t('auth.subtitle')}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder={t('common.email')}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder={t('common.password')}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+          <View style={styles.actions}>
+            <Button
+              label={submitting ? t('settings.signingIn') : t('common.signIn')}
+              onPress={handleSignIn}
+              disabled={submitting}
+            />
+            <Button
+              label={submitting ? t('settings.creatingAccount') : t('common.createAccount')}
+              variant="secondary"
+              onPress={handleCreateAccount}
+              disabled={submitting}
+            />
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.bg,
+    },
+    wrapper: {
+      flex: 1,
+      justifyContent: 'center',
+      padding: theme.spacing.lg,
+    },
+    card: {
+      padding: theme.spacing.lg,
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+      gap: theme.spacing.sm,
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: theme.colors.text,
+    },
+    subtitle: {
+      fontSize: 13,
+      color: theme.colors.textMuted,
+      marginBottom: theme.spacing.xs,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: theme.radius.sm,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      backgroundColor: theme.colors.surfaceAlt,
+      color: theme.colors.text,
+    },
+    actions: {
+      marginTop: theme.spacing.sm,
+      gap: theme.spacing.sm,
+    },
+  });

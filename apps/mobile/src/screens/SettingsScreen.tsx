@@ -1,24 +1,21 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useEffect, useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  createUserWithEmailAndPassword,
   onAuthStateChanged,
-  signInWithEmailAndPassword,
   signOut,
   type User,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 import Button from '../components/Button';
 import IslandBar from '../components/IslandBar';
-import { adminEmails } from '../config/env';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { auth, db } from '../services/firebase';
+import { auth } from '../services/firebase';
 import { offlineQueue } from '../services/offlineQueue';
 import { storage } from '../services/storage';
+import { isUserAdmin, upsertUserProfile } from '../services/userProfile';
 import { useI18n } from '../i18n';
 import { type Theme, useTheme } from '../theme';
 
@@ -31,8 +28,6 @@ export default function SettingsScreen() {
   const [queuedCount, setQueuedCount] = useState(0);
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
   useEffect(() => {
@@ -46,37 +41,11 @@ export default function SettingsScreen() {
         setIsAdmin(false);
         return;
       }
-      await ensureUserProfile(user);
-      if (adminEmails.includes(user.email.toLowerCase())) {
-        setIsAdmin(true);
-        return;
-      }
-      const snapshot = await getDoc(doc(db, 'users', user.uid));
-      setIsAdmin(snapshot.exists() && snapshot.data()?.is_admin === true);
+      await upsertUserProfile(user);
+      setIsAdmin(await isUserAdmin(user.uid));
     });
     return () => unsubscribe();
   }, []);
-
-  const ensureUserProfile = async (user: User) => {
-    const ref = doc(db, 'users', user.uid);
-    const snapshot = await getDoc(ref);
-    if (!snapshot.exists()) {
-      await setDoc(ref, {
-        email: user.email?.toLowerCase() ?? '',
-        created_at: new Date().toISOString(),
-        last_sign_in: new Date().toISOString(),
-      });
-      return;
-    }
-    await setDoc(
-      ref,
-      {
-        email: user.email?.toLowerCase() ?? '',
-        last_sign_in: new Date().toISOString(),
-      },
-      { merge: true }
-    );
-  };
 
   const refreshCache = async () => {
     await storage.remove('hotspots_cache_v1');
@@ -101,47 +70,10 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleSignIn = async () => {
-    if (!email.trim() || !password) {
-      Alert.alert(t('settings.missingCredsTitle'), t('settings.missingCredsText'));
-      return;
-    }
-    setAuthLoading(true);
-    try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
-      setPassword('');
-    } catch (error) {
-      Alert.alert(t('settings.signInFailedTitle'), t('settings.signInFailedText'));
-      console.error(error);
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleSignUp = async () => {
-    if (!email.trim() || !password) {
-      Alert.alert(t('settings.missingCredsTitle'), t('settings.missingCredsText'));
-      return;
-    }
-    setAuthLoading(true);
-    try {
-      await createUserWithEmailAndPassword(auth, email.trim(), password);
-      setPassword('');
-      Alert.alert(t('settings.accountCreatedTitle'), t('settings.accountCreatedText'));
-    } catch (error) {
-      Alert.alert(t('settings.signUpFailedTitle'), t('settings.signUpFailedText'));
-      console.error(error);
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
   const handleSignOut = async () => {
     setAuthLoading(true);
     try {
       await signOut(auth);
-      setEmail('');
-      setPassword('');
     } finally {
       setAuthLoading(false);
     }
@@ -163,7 +95,7 @@ export default function SettingsScreen() {
           isAdmin={isAdmin}
           onToggle={(next) => {
             if (next === 'admin') {
-              navigation.navigate('Admin');
+              navigation.navigate('Admin', undefined);
             }
           }}
         />
@@ -238,7 +170,7 @@ export default function SettingsScreen() {
           <Button
             label={isAdmin ? t('nav.admin') : t('common.adminRequired')}
             variant="secondary"
-            onPress={() => navigation.navigate('Admin')}
+            onPress={() => navigation.navigate('Admin', undefined)}
             disabled={!isAdmin}
           />
         </View>
@@ -264,39 +196,7 @@ export default function SettingsScreen() {
               />
             </>
           ) : (
-            <>
-              <Text style={styles.label}>{t('settings.signIn')}</Text>
-              <TextInput
-                style={styles.input}
-                placeholder={t('common.email')}
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder={t('common.password')}
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
-              <Button
-                label={authLoading ? t('settings.signingIn') : t('settings.signIn')}
-                variant="secondary"
-                onPress={handleSignIn}
-                disabled={authLoading}
-              />
-              <Button
-                label={
-                  authLoading
-                    ? t('settings.creatingAccount')
-                    : t('common.createAccount')
-                }
-                variant="secondary"
-                onPress={handleSignUp}
-                disabled={authLoading}
-              />
-            </>
+            <Text style={styles.value}>{t('admin.signInPrompt')}</Text>
           )}
         </View>
       </View>
@@ -353,15 +253,6 @@ const createStyles = (theme: Theme) =>
   value: {
     fontSize: 12,
     color: theme.colors.textMuted,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: theme.colors.surfaceAlt,
-    color: theme.colors.text,
   },
   actions: {
     marginTop: 12,
