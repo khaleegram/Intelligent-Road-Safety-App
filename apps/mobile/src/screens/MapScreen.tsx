@@ -2,7 +2,7 @@ import MapboxGL from '@rnmapbox/maps';
 import type { CameraRef } from '@rnmapbox/maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -19,25 +19,19 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '../components/Button';
-import ScreenHeader from '../components/ScreenHeader';
+import IslandBar from '../components/IslandBar';
 import { mapboxToken, missingFirebaseKeys } from '../config/env';
-import type { RootTabParamList } from '../navigation/RootNavigator';
+import type { RootStackParamList } from '../navigation/RootNavigator';
 import { fetchDirections } from '../services/directions';
 import { fetchAccidents, fetchHotspots } from '../services/firestore';
 import { fetchGeocodeSuggestions, type GeocodeSuggestion } from '../services/geocoding';
 import { computeHotspotsFromAccidents } from '../services/hotspotLogic';
+import { useAdminAccess } from '../hooks/useAdminAccess';
+import { useI18n } from '../i18n';
 import { type Theme, useTheme } from '../theme';
 import type { AccidentRecord, HotspotRecord } from '../types';
 
 const hasMapboxToken = mapboxToken.length > 0;
-const mapboxTokenNotice =
-  'Mapbox token missing. Set EXPO_PUBLIC_MAPBOX_TOKEN in apps/mobile/.env and rebuild the dev client.';
-const locationPermissionNotice =
-  'Location permission is required to show your position. Enable it in system settings.';
-const firebaseNotice =
-  missingFirebaseKeys.length > 0
-    ? `Firebase config missing: ${missingFirebaseKeys.join(', ')}. Update apps/mobile/.env and restart.`
-    : '';
 
 if (hasMapboxToken) {
   MapboxGL.setAccessToken(mapboxToken);
@@ -116,11 +110,19 @@ const distancePointToSegmentMeters = (
 };
 
 export default function MapScreen() {
-  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const styles = createStyles(theme);
+  const { isAdmin } = useAdminAccess();
+  const mapboxTokenNotice = t('map.mapboxMissingText');
+  const locationPermissionNotice = t('map.locationDisabledText');
+  const firebaseNotice =
+    missingFirebaseKeys.length > 0
+      ? t('map.firebaseMissingText', { keys: missingFirebaseKeys.join(', ') })
+      : '';
   const severityColors = getSeverityColors();
   const severityIconColors = getSeverityIconColors();
   const scrollRef = useRef<ScrollView>(null);
@@ -129,7 +131,7 @@ export default function MapScreen() {
   const [hotspots, setHotspots] = useState<HotspotRecord[]>([]);
   const [accidents, setAccidents] = useState<AccidentRecord[]>([]);
   const [selectedHotspot, setSelectedHotspot] = useState<HotspotRecord | null>(null);
-  const [hotspotCallout, setHotspotCallout] = useState<{ hotspot: HotspotRecord; x: number; y: number } | null>(null);
+  const [hotspotCallout, setHotspotCallout] = useState<HotspotRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
@@ -149,13 +151,16 @@ export default function MapScreen() {
   const [routePickMode, setRoutePickMode] = useState(false);
   const [routeSearchFocused, setRouteSearchFocused] = useState(false);
   const [mapSectionHeight, setMapSectionHeight] = useState(0);
-  const [mapLayout, setMapLayout] = useState({ width: 0, height: 0 });
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState<
     boolean | null
   >(null);
   const [waitingForGps, setWaitingForGps] = useState(false);
+  const [routeHotspotAlert, setRouteHotspotAlert] = useState<HotspotRecord | null>(
+    null
+  );
+  const notifiedHotspotsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const requestPermissions = async () => {
@@ -218,7 +223,7 @@ export default function MapScreen() {
       } catch (err) {
         console.error(err);
         if (mounted) {
-          setError('Failed to load hotspots');
+          setError(t('map.errorLoadHotspots'));
         }
       } finally {
         if (mounted) {
@@ -314,7 +319,7 @@ export default function MapScreen() {
     const lat = Number(routeLat);
     const lng = Number(routeLng);
     if (Number.isNaN(lat) || Number.isNaN(lng)) {
-      setError('Route destination must be valid latitude/longitude.');
+      setError(t('map.errorRouteCoords'));
       return;
     }
     setError(null);
@@ -399,6 +404,29 @@ export default function MapScreen() {
           return distance <= warningThresholdMeters;
         })
       : [];
+
+  useEffect(() => {
+    if (!userLocation || warningHotspots.length === 0) {
+      setRouteHotspotAlert(null);
+      return;
+    }
+    const nearby = warningHotspots.find((hotspot) => {
+      const distance = distanceMeters(
+        userLocation,
+        [hotspot.center_lng, hotspot.center_lat]
+      );
+      return distance <= warningThresholdMeters;
+    });
+    if (!nearby) {
+      setRouteHotspotAlert(null);
+      return;
+    }
+    if (notifiedHotspotsRef.current.has(nearby.area_id)) {
+      return;
+    }
+    notifiedHotspotsRef.current.add(nearby.area_id);
+    setRouteHotspotAlert(nearby);
+  }, [userLocation, warningHotspots]);
 
   const accidentsGeoJson = useMemo(
     () => ({
@@ -540,8 +568,7 @@ export default function MapScreen() {
                 if (found) {
                   lastHotspotTapRef.current = Date.now();
                   setSelectedHotspot(found);
-                  const point = event.point ?? { x: 0, y: 0 };
-                  setHotspotCallout({ hotspot: found, x: point.x, y: point.y });
+                  setHotspotCallout(found);
                 }
               }}
             >
@@ -571,34 +598,24 @@ export default function MapScreen() {
         </MapboxGL.MapView>
       ) : (
         <View style={styles.mapPlaceholder}>
-          <Text style={styles.placeholderTitle}>Mapbox token missing</Text>
+          <Text style={styles.placeholderTitle}>{t('map.mapboxMissingTitle')}</Text>
           <Text style={styles.placeholderText}>
-            Set EXPO_PUBLIC_MAPBOX_TOKEN in apps/mobile/.env and rebuild the
-            dev client.
+            {t('map.mapboxMissingText')}
           </Text>
         </View>
       )}
       {hotspotCallout ? (
-        <View
-          pointerEvents="none"
-          style={[
-            styles.calloutOverlay,
-            {
-              left: Math.max(8, hotspotCallout.x - 220),
-              top: Math.max(8, Math.min(hotspotCallout.y - 140, mapLayout.height - 140)),
-            },
-          ]}
-        >
+        <View pointerEvents="none" style={styles.calloutOverlay}>
           <View style={styles.callout}>
-            <Text style={styles.calloutTitle}>Hotspot</Text>
+            <Text style={styles.calloutTitle}>{t('map.hotspotTitle')}</Text>
             <Text style={styles.calloutText}>
-              Severity: {hotspotCallout.hotspot.severity_level}
+              {t('map.hotspotSeverity', { value: hotspotCallout.severity_level })}
             </Text>
             <Text style={styles.calloutText}>
-              Accidents: {hotspotCallout.hotspot.accident_count}
+              {t('map.hotspotAccidents', { value: hotspotCallout.accident_count })}
             </Text>
             <Text style={styles.calloutText}>
-              Risk score: {hotspotCallout.hotspot.risk_score}
+              {t('map.hotspotRisk', { value: hotspotCallout.risk_score })}
             </Text>
           </View>
           <View style={styles.calloutArrow} />
@@ -661,86 +678,99 @@ export default function MapScreen() {
           { paddingBottom: theme.spacing.lg + tabBarHeight },
         ]}
       >
+        <View style={styles.topBar}>
+          <IslandBar
+            eyebrow={t('map.eyebrow')}
+            title={t('map.title')}
+            subtitle={t('map.subtitle')}
+            mode="public"
+            isAdmin={isAdmin}
+            onToggle={(next) => {
+              if (next === 'admin') {
+                navigation.navigate('Admin');
+              }
+            }}
+          />
+        </View>
           <View
             style={styles.mapSection}
             pointerEvents="box-none"
             onLayout={(event) => {
               setMapSectionHeight(event.nativeEvent.layout.height);
-              setMapLayout({
-                width: event.nativeEvent.layout.width,
-                height: event.nativeEvent.layout.height,
-              });
             }}
           >
             {mapContent}
           </View>
           <View style={styles.panel}>
-          <ScreenHeader
-            eyebrow="Risk Map"
-            title="RoadSafe"
-            subtitle="Hotspots, incidents, and route warnings in one place."
-          />
           {!hasMapboxToken ? (
             <View style={styles.banner}>
-              <Text style={styles.bannerTitle}>Mapbox not configured</Text>
+              <Text style={styles.bannerTitle}>{t('map.mapboxMissingTitle')}</Text>
               <Text style={styles.bannerText}>{mapboxTokenNotice}</Text>
             </View>
           ) : null}
           {locationPermissionGranted === false ? (
             <View style={styles.banner}>
-              <Text style={styles.bannerTitle}>Location disabled</Text>
+              <Text style={styles.bannerTitle}>{t('map.locationDisabledTitle')}</Text>
               <Text style={styles.bannerText}>{locationPermissionNotice}</Text>
             </View>
           ) : null}
           {waitingForGps ? (
             <View style={styles.banner}>
-              <Text style={styles.bannerTitle}>Waiting for GPS</Text>
+              <Text style={styles.bannerTitle}>{t('map.waitingGpsTitle')}</Text>
               <Text style={styles.bannerText}>
-                Turn on device location services to show your position.
+                {t('map.waitingGpsText')}
               </Text>
             </View>
           ) : null}
           {missingFirebaseKeys.length > 0 ? (
             <View style={styles.banner}>
-              <Text style={styles.bannerTitle}>Firebase not configured</Text>
+              <Text style={styles.bannerTitle}>{t('map.firebaseMissingTitle')}</Text>
               <Text style={styles.bannerText}>{firebaseNotice}</Text>
             </View>
           ) : null}
           {loading ? (
             <View style={styles.statusRow}>
               <ActivityIndicator size="small" />
-              <Text style={styles.statusText}>Loading hotspots...</Text>
+              <Text style={styles.statusText}>{t('map.loadingHotspots')}</Text>
             </View>
           ) : null}
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {routeHotspotAlert ? (
+            <View style={styles.routeAlert}>
+              <Text style={styles.routeAlertTitle}>{t('map.routeAlertTitle')}</Text>
+              <Text style={styles.routeAlertText}>
+                {t('map.routeAlertText', {
+                  severity: routeHotspotAlert.severity_level,
+                })}
+              </Text>
+            </View>
+          ) : null}
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Legend</Text>
-              <Text style={styles.sectionHint}>Tap hotspots for details</Text>
+              <Text style={styles.sectionTitle}>{t('map.legendTitle')}</Text>
+              <Text style={styles.sectionHint}>{t('map.legendHint')}</Text>
             </View>
             <View style={styles.legend}>
               <View style={styles.legendItem}>
                 <View style={[styles.marker, styles.legendMarker]}>
                   <Ionicons name="warning" size={10} color="#ffffff" />
                 </View>
-                <Text style={styles.legendText}>Hotspot (severity)</Text>
+                <Text style={styles.legendText}>{t('map.legendHotspot')}</Text>
               </View>
               <View style={styles.legendItem}>
                 <View style={styles.accidentMarker} />
-                <Text style={styles.legendText}>Accident</Text>
+                <Text style={styles.legendText}>{t('map.legendAccident')}</Text>
               </View>
             </View>
           </View>
           <View style={styles.routeCard}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Route Warning</Text>
-              <Text style={styles.sectionHint}>
-                Check if your route passes risk zones
-              </Text>
+              <Text style={styles.sectionTitle}>{t('map.routeTitle')}</Text>
+              <Text style={styles.sectionHint}>{t('map.routeHint')}</Text>
             </View>
             <TextInput
               style={styles.routeSearchInput}
-              placeholder="Search destination (e.g., Garki Area 1)"
+              placeholder={t('map.routeSearchPlaceholder')}
               value={routeQuery}
               onChangeText={setRouteQuery}
               placeholderTextColor={theme.colors.textSoft}
@@ -754,7 +784,7 @@ export default function MapScreen() {
               onBlur={() => setRouteSearchFocused(false)}
             />
             {routeSearching ? (
-              <Text style={styles.routeHint}>Searching locations...</Text>
+              <Text style={styles.routeHint}>{t('map.routeSearching')}</Text>
             ) : null}
             {routeSuggestions.length > 0 ? (
               <View style={styles.suggestionList}>
@@ -773,14 +803,14 @@ export default function MapScreen() {
             <View style={styles.routeRow}>
               <TextInput
                 style={styles.routeInput}
-                placeholder="Destination latitude"
+                placeholder={t('map.routeLatPlaceholder')}
                 value={routeLat}
                 onChangeText={setRouteLat}
                 keyboardType="numeric"
               />
               <TextInput
                 style={styles.routeInput}
-                placeholder="Destination longitude"
+                placeholder={t('map.routeLngPlaceholder')}
                 value={routeLng}
                 onChangeText={setRouteLng}
                 keyboardType="numeric"
@@ -788,7 +818,7 @@ export default function MapScreen() {
             </View>
             <View style={styles.routeActions}>
               <Pressable style={styles.routeButton} onPress={setRoute}>
-                <Text style={styles.routeButtonText}>Set route</Text>
+                <Text style={styles.routeButtonText}>{t('map.routeSet')}</Text>
               </Pressable>
               <Pressable
                 style={[
@@ -798,66 +828,95 @@ export default function MapScreen() {
                 onPress={() => setRoutePickMode((prev) => !prev)}
               >
                 <Text style={styles.routeButtonSecondaryText}>
-                  {routePickMode ? 'Tap map to set destination' : 'Pick on map'}
+                  {routePickMode
+                    ? t('map.routePickActive')
+                    : t('map.routePick')}
                 </Text>
               </Pressable>
               <Pressable style={styles.routeButtonSecondary} onPress={clearRoute}>
-                <Text style={styles.routeButtonSecondaryText}>Clear</Text>
+                <Text style={styles.routeButtonSecondaryText}>{t('map.routeClear')}</Text>
               </Pressable>
             </View>
           <Text style={styles.routeHint}>
-            Warning radius: {warningThresholdMeters}m from your route.
+            {t('map.routeWarningRadius', { meters: warningThresholdMeters })}
           </Text>
           {routeDestination && routeLoading ? (
-            <Text style={styles.routeHint}>Finding best route...</Text>
+            <Text style={styles.routeHint}>{t('map.routeFinding')}</Text>
           ) : null}
           {routeDestination && routeDistanceMeters != null ? (
             <Text style={styles.routeDistance}>
-              Distance: {(routeDistanceMeters / 1000).toFixed(1)} km
+              {t('map.routeDistance', {
+                km: (routeDistanceMeters / 1000).toFixed(1),
+              })}
             </Text>
           ) : routeDestination && !userLocation ? (
-            <Text style={styles.routeDistance}>Enable location for distance.</Text>
+            <Text style={styles.routeDistance}>{t('map.routeNoLocation')}</Text>
           ) : null}
           {routeDestination && warningHotspots.length > 0 ? (
             <View style={styles.routeWarning}>
               <Text style={styles.routeWarningText}>
-                Warning: {warningHotspots.length} hotspot
-                  {warningHotspots.length === 1 ? '' : 's'} near your route.
+                {t('map.routeWarningText', {
+                  count: warningHotspots.length,
+                  plural: warningHotspots.length === 1 ? '' : 's',
+                })}
                 </Text>
               </View>
             ) : null}
-            {routeDestination && warningHotspots.length === 0 ? (
-              <Text style={styles.routeOkText}>No hotspots near this route.</Text>
-            ) : null}
-          </View>
+          {routeDestination && warningHotspots.length === 0 ? (
+            <Text style={styles.routeOkText}>{t('map.routeOk')}</Text>
+          ) : null}
+          {routeDestination && warningHotspots.length > 0 ? (
+            <View style={styles.routeHotspotList}>
+              {warningHotspots.map((hotspot) => (
+                <View key={hotspot.area_id} style={styles.routeHotspotRow}>
+                  <View style={styles.routeHotspotHeader}>
+                    <Text style={styles.routeHotspotTitle}>
+                      {t('map.hotspotTitle')} - {hotspot.severity_level}
+                    </Text>
+                    <Text style={styles.routeHotspotMeta}>
+                      {hotspot.accident_count}{' '}
+                      {t('map.legendAccident').toLowerCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.routeHotspotLocation}>
+                    {t('map.hotspotLocation', {
+                      lat: hotspot.center_lat.toFixed(5),
+                      lng: hotspot.center_lng.toFixed(5),
+                    })}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </View>
           {selectedHotspot ? (
             <View style={styles.detailCard}>
               <View style={styles.detailRow}>
-                <Text style={styles.detailTitle}>Hotspot</Text>
+                <Text style={styles.detailTitle}>{t('map.hotspotTitle')}</Text>
                 <Pressable onPress={() => setSelectedHotspot(null)}>
-                  <Text style={styles.detailClose}>Close</Text>
+                  <Text style={styles.detailClose}>{t('common.close')}</Text>
                 </Pressable>
               </View>
               <Text style={styles.detailText}>
-                Severity: {selectedHotspot.severity_level}
+                {t('map.hotspotSeverity', { value: selectedHotspot.severity_level })}
               </Text>
               <Text style={styles.detailText}>
-                Accidents: {selectedHotspot.accident_count}
+                {t('map.hotspotAccidents', { value: selectedHotspot.accident_count })}
               </Text>
               <Text style={styles.detailText}>
-                Risk score: {selectedHotspot.risk_score}
+                {t('map.hotspotRisk', { value: selectedHotspot.risk_score })}
               </Text>
             </View>
           ) : null}
           <View style={styles.actions}>
             <Button
-              label="Report incident"
-              onPress={() => navigation.navigate('Report')}
+              label={t('common.reportIncident')}
+              onPress={() => navigation.navigate('Public', { screen: 'Report' })}
             />
             <Button
-              label="Settings"
+              label={t('common.settings')}
               variant="secondary"
-              onPress={() => navigation.navigate('Settings')}
+              onPress={() => navigation.navigate('Public', { screen: 'Settings' })}
             />
           </View>
           {routeSearchFocused ? (
@@ -941,6 +1000,10 @@ const createStyles = (theme: Theme) =>
     padding: theme.spacing.lg,
     paddingTop: theme.spacing.sm,
     gap: theme.spacing.sm,
+  },
+  topBar: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
   },
   statusRow: {
     marginTop: theme.spacing.xs,
@@ -1139,6 +1202,54 @@ const createStyles = (theme: Theme) =>
     fontSize: 12,
     color: theme.colors.success,
   },
+  routeHotspotList: {
+    marginTop: 8,
+    gap: 8,
+  },
+  routeHotspotRow: {
+    padding: 8,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceAlt,
+  },
+  routeHotspotHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  routeHotspotTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  routeHotspotMeta: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
+  },
+  routeHotspotLocation: {
+    marginTop: 4,
+    fontSize: 11,
+    color: theme.colors.textSoft,
+  },
+  routeAlert: {
+    marginTop: theme.spacing.sm,
+    padding: theme.spacing.sm,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    backgroundColor: '#fffbeb',
+  },
+  routeAlertTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#b45309',
+  },
+  routeAlertText: {
+    marginTop: 4,
+    fontSize: 11,
+    color: '#b45309',
+  },
   actions: {
     marginTop: theme.spacing.sm,
     flexDirection: 'row',
@@ -1219,7 +1330,9 @@ const createStyles = (theme: Theme) =>
   },
   calloutOverlay: {
     position: 'absolute',
-    width: 180,
+    top: 12,
+    left: 12,
+    right: 12,
     zIndex: 10,
     elevation: 10,
     alignItems: 'center',

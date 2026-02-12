@@ -1,7 +1,8 @@
 import MapboxGL from '@rnmapbox/maps';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { useBottomTabBarHeight, type BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ActivityIndicator,
   Alert,
@@ -16,12 +17,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Button from '../components/Button';
-import ScreenHeader from '../components/ScreenHeader';
+import IslandBar from '../components/IslandBar';
 import { mapboxToken, missingFirebaseKeys } from '../config/env';
-import type { RootTabParamList } from '../navigation/RootNavigator';
+import type { RootStackParamList } from '../navigation/RootNavigator';
 import { createAccident } from '../services/firestore';
 import { fetchGeocodeSuggestions, type GeocodeSuggestion } from '../services/geocoding';
 import { offlineQueue } from '../services/offlineQueue';
+import { useAdminAccess } from '../hooks/useAdminAccess';
+import { useI18n } from '../i18n';
 import { type Theme, useTheme } from '../theme';
 import type { AccidentSeverity, AccidentRecord } from '../types';
 
@@ -34,18 +37,19 @@ const severityOptions: AccidentSeverity[] = [
 const roadTypeOptions = ['Urban', 'Highway', 'Residential', 'Rural', 'Intersection', 'Other'];
 const weatherOptions = ['Clear', 'Rain', 'Fog', 'Night', 'Harmattan', 'Other'];
 const hasMapboxToken = mapboxToken.length > 0;
-const mapboxTokenNotice =
-  'Mapbox token missing. Set EXPO_PUBLIC_MAPBOX_TOKEN in apps/mobile/.env and rebuild the dev client.';
-const firebaseNotice =
-  missingFirebaseKeys.length > 0
-    ? `Firebase config missing: ${missingFirebaseKeys.join(', ')}. Update apps/mobile/.env and restart.`
-    : '';
 
 export default function ReportScreen() {
-  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
+  const { t } = useI18n();
   const tabBarHeight = useBottomTabBarHeight();
   const styles = createStyles(theme);
+  const { isAdmin } = useAdminAccess();
+  const mapboxNotice = t('report.mapboxMissingText');
+  const firebaseNoticeText =
+    missingFirebaseKeys.length > 0
+      ? t('report.firebaseMissingText', { keys: missingFirebaseKeys.join(', ') })
+      : '';
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [timestamp, setTimestamp] = useState('');
@@ -88,7 +92,7 @@ export default function ReportScreen() {
     if (hasMapboxToken) {
       MapboxGL.setAccessToken(mapboxToken);
     }
-  }, []);
+  }, [t]);
 
 
   useEffect(() => {
@@ -121,7 +125,9 @@ export default function ReportScreen() {
       if (state === 'active') {
         offlineQueue.sync().then((result) => {
           if (result.synced > 0) {
-            setSyncStatus(`Synced ${result.synced} queued report(s).`);
+            setSyncStatus(
+              t('report.syncedStatus', { count: result.synced })
+            );
           }
         });
       }
@@ -164,22 +170,22 @@ export default function ReportScreen() {
     const casualties = casualtyCount;
 
     if (Number.isNaN(lat) || Number.isNaN(lng)) {
-      Alert.alert('Invalid location', 'Latitude and longitude must be numbers.');
+      Alert.alert(t('report.invalidLocationTitle'), t('report.invalidLocationText'));
       return;
     }
 
     if (!roadTypeValue) {
-      Alert.alert('Missing field', 'Road type is required.');
+      Alert.alert(t('report.missingFieldTitle'), t('report.missingRoadTypeText'));
       return;
     }
 
     if (!weatherValue) {
-      Alert.alert('Missing field', 'Weather condition is required.');
+      Alert.alert(t('report.missingFieldTitle'), t('report.missingWeatherText'));
       return;
     }
 
     if (vehicles < 0 || casualties < 0) {
-      Alert.alert('Invalid counts', 'Counts must be zero or greater.');
+      Alert.alert(t('report.invalidCountsTitle'), t('report.invalidCountsText'));
       return;
     }
 
@@ -198,7 +204,7 @@ export default function ReportScreen() {
     try {
       setSubmitting(true);
       await createAccident(record);
-      Alert.alert('Submitted', 'Accident report saved.');
+      Alert.alert(t('report.submittedTitle'), t('report.submittedText'));
       setLatitude('');
       setLongitude('');
       setTimestamp('');
@@ -213,8 +219,8 @@ export default function ReportScreen() {
     } catch (error) {
       await offlineQueue.enqueue(record);
       Alert.alert(
-        'Queued offline',
-        'No connection. Your report was saved and will sync automatically.'
+        t('report.queuedTitle'),
+        t('report.queuedText')
       );
       console.error(error);
     } finally {
@@ -232,42 +238,49 @@ export default function ReportScreen() {
           { paddingBottom: theme.spacing.lg + tabBarHeight },
         ]}
       >
-          <ScreenHeader
-            eyebrow="Report"
-            title="Report Incident"
-            subtitle="Provide details to help build safer roads."
-          />
+        <IslandBar
+          eyebrow={t('report.eyebrow')}
+          title={t('report.title')}
+          subtitle={t('report.subtitle')}
+          mode="public"
+          isAdmin={isAdmin}
+          onToggle={(next) => {
+            if (next === 'admin') {
+              navigation.navigate('Admin');
+            }
+          }}
+        />
       {!hasMapboxToken ? (
         <View style={styles.banner}>
-          <Text style={styles.bannerTitle}>Mapbox not configured</Text>
-          <Text style={styles.bannerText}>{mapboxTokenNotice}</Text>
+          <Text style={styles.bannerTitle}>{t('report.mapboxMissingTitle')}</Text>
+          <Text style={styles.bannerText}>{mapboxNotice}</Text>
         </View>
       ) : null}
       {missingFirebaseKeys.length > 0 ? (
         <View style={styles.banner}>
-          <Text style={styles.bannerTitle}>Firebase not configured</Text>
-          <Text style={styles.bannerText}>{firebaseNotice}</Text>
+          <Text style={styles.bannerTitle}>{t('report.firebaseMissingTitle')}</Text>
+          <Text style={styles.bannerText}>{firebaseNoticeText}</Text>
         </View>
       ) : null}
       {syncStatus ? (
         <View style={styles.banner}>
-          <Text style={styles.bannerTitle}>Sync complete</Text>
+          <Text style={styles.bannerTitle}>{t('report.syncCompleteTitle')}</Text>
           <Text style={styles.bannerText}>{syncStatus}</Text>
         </View>
       ) : null}
 
       {hasMapboxToken ? (
         <View style={styles.searchCard}>
-          <Text style={styles.sectionTitle}>Search location</Text>
+          <Text style={styles.sectionTitle}>{t('report.searchTitle')}</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search a place (e.g., Garki Area 1)"
+            placeholder={t('report.searchPlaceholder')}
             value={locationQuery}
             onChangeText={setLocationQuery}
             placeholderTextColor={theme.colors.textSoft}
           />
           {locationSearching ? (
-            <Text style={styles.searchHint}>Searching locations...</Text>
+            <Text style={styles.searchHint}>{t('report.searching')}</Text>
           ) : null}
           {locationSuggestions.length > 0 ? (
             <View style={styles.suggestionList}>
@@ -285,7 +298,7 @@ export default function ReportScreen() {
           ) : null}
           <View style={styles.quickRow}>
             <Button
-              label="Use current location"
+              label={t('report.useCurrentLocation')}
               variant="secondary"
               onPress={useCurrentLocation}
               disabled={!userLocation}
@@ -316,40 +329,40 @@ export default function ReportScreen() {
                 }
               }}
             />
-            {selectedCoordinate ? (
-              <MapboxGL.PointAnnotation
-                id="selected-location"
-                coordinate={selectedCoordinate}
-              />
-            ) : null}
-          </MapboxGL.MapView>
-          <Text style={styles.mapHint}>Tap the map to set the incident location.</Text>
-        </View>
+          {selectedCoordinate ? (
+            <MapboxGL.PointAnnotation
+              id="selected-location"
+              coordinate={selectedCoordinate}
+            />
+          ) : null}
+        </MapboxGL.MapView>
+        <Text style={styles.mapHint}>{t('report.mapHint')}</Text>
+      </View>
       ) : null}
 
-      <Text style={styles.sectionTitle}>Location</Text>
+      <Text style={styles.sectionTitle}>{t('report.sectionLocation')}</Text>
       <View style={styles.inlineHeader}>
-        <Text style={styles.inlineTitle}>Coordinates</Text>
+        <Text style={styles.inlineTitle}>{t('report.coordinates')}</Text>
         <Pressable
           style={styles.inlineAction}
           onPress={() => setEditCoordinates((prev) => !prev)}
         >
           <Text style={styles.inlineActionText}>
-            {editCoordinates ? 'Lock' : 'Edit'}
+            {editCoordinates ? t('report.lock') : t('report.edit')}
           </Text>
         </Pressable>
       </View>
       <View style={styles.coordinateRow}>
         <View style={styles.coordinatePill}>
-          <Text style={styles.coordinateLabel}>Lat</Text>
+          <Text style={styles.coordinateLabel}>{t('report.lat')}</Text>
           <Text style={styles.coordinateValue}>
-            {latitude.trim().length > 0 ? latitude : '--'}
+            {latitude.trim().length > 0 ? latitude : t('common.none')}
           </Text>
         </View>
         <View style={styles.coordinatePill}>
-          <Text style={styles.coordinateLabel}>Lng</Text>
+          <Text style={styles.coordinateLabel}>{t('report.lng')}</Text>
           <Text style={styles.coordinateValue}>
-            {longitude.trim().length > 0 ? longitude : '--'}
+            {longitude.trim().length > 0 ? longitude : t('common.none')}
           </Text>
         </View>
       </View>
@@ -357,7 +370,7 @@ export default function ReportScreen() {
         <>
           <TextInput
             style={styles.input}
-            placeholder="Latitude"
+            placeholder={t('map.routeLatPlaceholder')}
             value={latitude}
             onChangeText={setLatitude}
             keyboardType="numeric"
@@ -365,7 +378,7 @@ export default function ReportScreen() {
           />
           <TextInput
             style={styles.input}
-            placeholder="Longitude"
+            placeholder={t('map.routeLngPlaceholder')}
             value={longitude}
             onChangeText={setLongitude}
             keyboardType="numeric"
@@ -374,34 +387,34 @@ export default function ReportScreen() {
         </>
       ) : null}
       <View style={styles.inlineHeader}>
-        <Text style={styles.inlineTitle}>Time of incident</Text>
+        <Text style={styles.inlineTitle}>{t('report.timeOfIncident')}</Text>
         <Pressable
           style={styles.inlineAction}
           onPress={() => setEditTimestamp((prev) => !prev)}
         >
           <Text style={styles.inlineActionText}>
-            {editTimestamp ? 'Use now' : 'Set time'}
+            {editTimestamp ? t('report.useNow') : t('report.setTime')}
           </Text>
         </Pressable>
       </View>
       <Text style={styles.inlineHint}>
         {editTimestamp && timestamp.trim().length > 0
           ? timestamp.trim()
-          : 'Now'}
+          : t('report.useNow')}
       </Text>
       {editTimestamp ? (
         <TextInput
           style={styles.input}
-          placeholder="Timestamp (ISO, optional)"
+          placeholder={t('report.timestampPlaceholder')}
           value={timestamp}
           onChangeText={setTimestamp}
           placeholderTextColor={theme.colors.textSoft}
         />
       ) : null}
 
-      <Text style={styles.sectionTitle}>Incident details</Text>
+      <Text style={styles.sectionTitle}>{t('report.incidentDetails')}</Text>
       <View style={styles.section}>
-        <Text style={styles.label}>Severity</Text>
+        <Text style={styles.label}>{t('report.severity')}</Text>
         <View style={styles.row}>
           {severityOptions.map((option) => (
             <Pressable
@@ -418,14 +431,14 @@ export default function ReportScreen() {
                   severity === option && styles.chipTextSelected,
                 ]}
               >
-                {option}
+                {t(`options.severity.${option}`)}
               </Text>
             </Pressable>
           ))}
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>Road type</Text>
+      <Text style={styles.sectionTitle}>{t('report.roadType')}</Text>
       <View style={styles.row}>
         {roadTypeOptions.map((option) => (
           <Pressable
@@ -447,7 +460,7 @@ export default function ReportScreen() {
                 roadTypePreset === option && styles.chipTextSelected,
               ]}
             >
-              {option}
+              {t(`options.roadType.${option}`)}
             </Text>
           </Pressable>
         ))}
@@ -455,13 +468,13 @@ export default function ReportScreen() {
       {roadTypePreset === 'Other' ? (
         <TextInput
           style={styles.input}
-          placeholder="Describe road type"
+          placeholder={t('report.describeRoadType')}
           value={roadTypeCustom}
           onChangeText={setRoadTypeCustom}
           placeholderTextColor={theme.colors.textSoft}
         />
       ) : null}
-      <Text style={styles.sectionTitle}>Weather</Text>
+      <Text style={styles.sectionTitle}>{t('report.weather')}</Text>
       <View style={styles.row}>
         {weatherOptions.map((option) => (
           <Pressable
@@ -483,7 +496,7 @@ export default function ReportScreen() {
                 weatherPreset === option && styles.chipTextSelected,
               ]}
             >
-              {option}
+              {t(`options.weather.${option}`)}
             </Text>
           </Pressable>
         ))}
@@ -491,15 +504,15 @@ export default function ReportScreen() {
       {weatherPreset === 'Other' ? (
         <TextInput
           style={styles.input}
-          placeholder="Describe weather"
+          placeholder={t('report.describeWeather')}
           value={weatherCustom}
           onChangeText={setWeatherCustom}
           placeholderTextColor={theme.colors.textSoft}
         />
       ) : null}
-      <Text style={styles.sectionTitle}>Counts</Text>
+      <Text style={styles.sectionTitle}>{t('report.counts')}</Text>
       <View style={styles.counterRow}>
-        <Text style={styles.counterLabel}>Vehicles involved</Text>
+        <Text style={styles.counterLabel}>{t('report.vehicles')}</Text>
         <View style={styles.counterControls}>
           <Pressable
             style={styles.counterButton}
@@ -517,7 +530,7 @@ export default function ReportScreen() {
         </View>
       </View>
       <View style={styles.counterRow}>
-        <Text style={styles.counterLabel}>Casualties</Text>
+        <Text style={styles.counterLabel}>{t('report.casualties')}</Text>
         <View style={styles.counterControls}>
           <Pressable
             style={styles.counterButton}
@@ -538,16 +551,16 @@ export default function ReportScreen() {
       {submitting ? (
         <View style={styles.loading}>
           <ActivityIndicator color={theme.colors.accent} />
-          <Text style={styles.loadingText}>Submitting...</Text>
+          <Text style={styles.loadingText}>{t('report.submitting')}</Text>
         </View>
       ) : null}
 
       <View style={styles.actions}>
-        <Button label="Submit report" onPress={submit} disabled={!canSubmit} />
+        <Button label={t('report.submit')} onPress={submit} disabled={!canSubmit} />
         <Button
-          label="Back to map"
+          label={t('common.backToMap')}
           variant="secondary"
-          onPress={() => navigation.navigate('Map')}
+          onPress={() => navigation.navigate('Public', { screen: 'Map' })}
         />
       </View>
       </ScrollView>

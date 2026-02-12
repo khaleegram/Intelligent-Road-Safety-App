@@ -13,7 +13,20 @@ export const offlineQueue = {
       ...accident,
       queued_at: new Date().toISOString(),
     };
-    queue.push(queued);
+
+    if (queued.request_id) {
+      const existingIndex = queue.findIndex(
+        (item) => item.request_id === queued.request_id
+      );
+      if (existingIndex >= 0) {
+        queue[existingIndex] = queued;
+      } else {
+        queue.push(queued);
+      }
+    } else {
+      queue.push(queued);
+    }
+
     await storage.set(QUEUE_KEY, queue);
   },
 
@@ -36,7 +49,8 @@ export const offlineQueue = {
 
     for (const item of queue) {
       try {
-        await createAccident(item);
+        const { queued_at, ...record } = item;
+        await createAccident(record);
         synced += 1;
       } catch {
         remaining.push(item);
