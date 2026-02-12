@@ -1,13 +1,23 @@
-// Firestore rules (placeholder - tighten before production)
+// Firestore rules (hardened for idempotent accident submissions)
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.is_admin == true;
+    }
+
     function isNumber(value) {
       return value is int || value is float;
     }
 
-    function isValidAccident(data) {
+    function isValidAccident(data, accidentId) {
       return data.keys().hasAll([
+          'request_id',
           'latitude',
           'longitude',
           'timestamp',
@@ -19,6 +29,7 @@ service cloud.firestore {
           'created_at'
         ]) &&
         data.keys().hasOnly([
+          'request_id',
           'latitude',
           'longitude',
           'timestamp',
@@ -28,8 +39,15 @@ service cloud.firestore {
           'vehicle_count',
           'casualty_count',
           'created_at',
-          'server_created_at'
+          'server_created_at',
+          'reporter_uid',
+          'verified',
+          'verified_by',
+          'verified_at',
+          'notes'
         ]) &&
+        data.request_id is string &&
+        data.request_id == accidentId &&
         isNumber(data.latitude) &&
         isNumber(data.longitude) &&
         data.timestamp is string &&
@@ -39,18 +57,43 @@ service cloud.firestore {
         isNumber(data.vehicle_count) &&
         isNumber(data.casualty_count) &&
         data.created_at is string &&
-        (!('server_created_at' in data) || data.server_created_at is timestamp);
+        (!('reporter_uid' in data) || data.reporter_uid is string) &&
+        (!('reporter_uid' in data) || !isSignedIn() || data.reporter_uid == request.auth.uid) &&
+        (!('server_created_at' in data) || data.server_created_at is timestamp) &&
+        (!('verified' in data) || data.verified is bool) &&
+        (!('verified_by' in data) || data.verified_by is string) &&
+        (!('verified_at' in data) || data.verified_at is timestamp) &&
+        (!('notes' in data) || data.notes is string);
     }
 
     match /accidents/{accidentId} {
       allow read: if true;
-      allow create: if isValidAccident(request.resource.data);
-      allow update, delete: if false;
+      allow create: if isValidAccident(request.resource.data, accidentId);
+      allow update: if isAdmin() &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'verified',
+          'verified_by',
+          'verified_at',
+          'notes'
+        ]);
+      allow delete: if false;
     }
 
     match /hotspots/{hotspotId} {
       allow read: if true;
       allow write: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() &&
+        request.auth.uid == userId &&
+        !('is_admin' in request.resource.data);
+      allow update: if isSignedIn() &&
+        request.auth.uid == userId &&
+        (!('is_admin' in request.resource.data) ||
+          request.resource.data.is_admin == resource.data.is_admin);
+      allow delete: if false;
     }
 
     match /{document=**} {
