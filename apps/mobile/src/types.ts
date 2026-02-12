@@ -11,6 +11,7 @@ export type AccidentRecord = {
   vehicle_count: number;
   casualty_count: number;
   created_at: string;
+  reporter_uid?: string;
 };
 
 export type HotspotSeverity = 'Fatal' | 'Critical' | 'Minor' | 'Damage Only';
@@ -23,4 +24,12 @@ export type HotspotRecord = {
   severity_level: HotspotSeverity;
   accident_count: number;
   last_updated: string;
+};
+
+export type UserProfile = {
+  id?: string;
+  email: string;
+  created_at?: string;
+  last_sign_in?: string;
+  is_admin?: boolean;
 };

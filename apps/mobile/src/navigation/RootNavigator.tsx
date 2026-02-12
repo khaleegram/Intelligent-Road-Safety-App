@@ -1,20 +1,18 @@
-import { Ionicons } from '@expo/vector-icons';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { NavigationContainer, DefaultTheme, type NavigatorScreenParams } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import MapScreen from '../screens/MapScreen';
-import ReportScreen from '../screens/ReportScreen';
-import SettingsScreen from '../screens/SettingsScreen';
-import '../services/firebase';
+import AdminTabs from './AdminTabs';
+import PublicTabs from './PublicTabs';
+import type { AdminTabParamList } from './AdminTabs';
+import type { PublicTabParamList } from './PublicTabs';
 import { useTheme } from '../theme';
 
-export type RootTabParamList = {
-  Map: undefined;
-  Report: undefined;
-  Settings: undefined;
+export type RootStackParamList = {
+  Public: NavigatorScreenParams<PublicTabParamList>;
+  Admin: NavigatorScreenParams<AdminTabParamList>;
 };
 
-const Tab = createBottomTabNavigator<RootTabParamList>();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
   const { theme } = useTheme();
@@ -32,31 +30,10 @@ export default function RootNavigator() {
         },
       }}
     >
-      <Tab.Navigator
-        initialRouteName="Map"
-        screenOptions={({ route }) => ({
-          headerShown: false,
-          tabBarActiveTintColor: theme.colors.accent,
-          tabBarInactiveTintColor: theme.colors.textSoft,
-          tabBarStyle: {
-            borderTopColor: theme.colors.border,
-            backgroundColor: theme.colors.surface,
-          },
-          tabBarIcon: ({ color, size }) => {
-            const iconName =
-              route.name === 'Map'
-                ? 'map'
-                : route.name === 'Report'
-                  ? 'warning'
-                  : 'settings';
-            return <Ionicons name={iconName} size={size} color={color} />;
-          },
-        })}
-      >
-        <Tab.Screen name="Map" component={MapScreen} />
-        <Tab.Screen name="Report" component={ReportScreen} />
-        <Tab.Screen name="Settings" component={SettingsScreen} />
-      </Tab.Navigator>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Public" component={PublicTabs} />
+        <Stack.Screen name="Admin" component={AdminTabs} />
+      </Stack.Navigator>
     </NavigationContainer>
   );
 }
