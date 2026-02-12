@@ -17,10 +17,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         '@rnmapbox/maps',
         {},
       ],
+      [
+        'expo-notifications',
+        {},
+      ],
     ],
     extra: {
       ...config.extra,
       mapboxToken: process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '',
+      adminRoleEndpoint: process.env.EXPO_PUBLIC_ADMIN_ROLE_ENDPOINT ?? '',
       firebase: {
         apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? '',
         authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ?? '',

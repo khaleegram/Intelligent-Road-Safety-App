@@ -13,6 +13,7 @@ type FirebaseConfig = {
 type AppExtra = {
   mapboxToken?: string;
   firebase?: Partial<FirebaseConfig>;
+  adminRoleEndpoint?: string;
 };
 
 const manifestExtra = (Constants.manifest as { extra?: AppExtra } | null)?.extra;
@@ -25,6 +26,11 @@ const getEnvValue = (key: string, fallback = '') => {
 export const mapboxToken = getEnvValue(
   'EXPO_PUBLIC_MAPBOX_TOKEN',
   extra.mapboxToken ?? ''
+);
+
+export const adminRoleEndpoint = getEnvValue(
+  'EXPO_PUBLIC_ADMIN_ROLE_ENDPOINT',
+  extra.adminRoleEndpoint ?? ''
 );
 
 export const firebaseConfig: FirebaseConfig = {

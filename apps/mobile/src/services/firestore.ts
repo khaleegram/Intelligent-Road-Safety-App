@@ -1,20 +1,24 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
   runTransaction,
+  serverTimestamp,
+  updateDoc,
 } from 'firebase/firestore';
 
 import { auth, db } from './firebase';
-import type { AccidentRecord, HotspotRecord, UserProfile } from '../types';
+import type { AccidentRecord, AdminAlert, HotspotRecord, UserProfile } from '../types';
 import { storage } from './storage';
 import { generateRequestId } from './requestId';
 
 const accidentsCollection = collection(db, 'accidents');
 const hotspotsCollection = collection(db, 'hotspots');
 const usersCollection = collection(db, 'users');
+const alertsCollection = collection(db, 'admin_alerts');
 const HOTSPOTS_CACHE_KEY = 'hotspots_cache_v1';
 const ACCIDENTS_CACHE_KEY = 'accidents_cache_v1';
 
@@ -103,5 +107,70 @@ export async function fetchUsers(): Promise<UserProfile[]> {
   } catch (error) {
     console.error('Failed to fetch users', error);
     throw new Error('Unable to load user data. Check your connection.');
+  }
+}
+
+export async function fetchAdminAlerts(): Promise<AdminAlert[]> {
+  try {
+    const snapshot = await getDocs(query(alertsCollection, orderBy('created_at', 'desc')));
+    return snapshot.docs.map((item) => ({
+      id: item.id,
+      ...(item.data() as Omit<AdminAlert, 'id'>),
+    }));
+  } catch (error) {
+    console.error('Failed to fetch admin alerts', error);
+    throw new Error('Unable to load admin alerts.');
+  }
+}
+
+export async function fetchAccidentById(accidentId: string): Promise<AccidentRecord | null> {
+  try {
+    const snapshot = await getDoc(doc(db, 'accidents', accidentId));
+    if (!snapshot.exists()) {
+      return null;
+    }
+    return {
+      id: snapshot.id,
+      ...(snapshot.data() as Omit<AccidentRecord, 'id'>),
+    };
+  } catch (error) {
+    console.error('Failed to fetch accident by id', error);
+    throw new Error('Unable to load accident details. Check your connection.');
+  }
+}
+
+export async function fetchHotspotById(hotspotId: string): Promise<HotspotRecord | null> {
+  try {
+    const snapshot = await getDoc(doc(db, 'hotspots', hotspotId));
+    if (!snapshot.exists()) {
+      return null;
+    }
+    return snapshot.data() as HotspotRecord;
+  } catch (error) {
+    console.error('Failed to fetch hotspot by id', error);
+    throw new Error('Unable to load hotspot details. Check your connection.');
+  }
+}
+
+export async function updateAccidentVerification(params: {
+  accidentId: string;
+  verified: boolean;
+  notes?: string;
+}): Promise<void> {
+  const user = auth.currentUser;
+  if (!user?.uid) {
+    throw new Error('Sign in is required.');
+  }
+
+  try {
+    await updateDoc(doc(db, 'accidents', params.accidentId), {
+      verified: params.verified,
+      verified_by: user.uid,
+      verified_at: serverTimestamp(),
+      notes: params.notes?.trim() ?? '',
+    });
+  } catch (error) {
+    console.error('Failed to update verification', error);
+    throw new Error('Unable to update verification status.');
   }
 }
