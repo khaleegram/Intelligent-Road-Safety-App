@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2020",
+    "outDir": ".test-dist",
+    "types": ["node"],
+    "noEmit": false
+  },
+  "include": [
+    "src/types.ts",
+    "src/services/offlineQueueCore.ts",
+    "src/services/reportValidation.ts",
+    "src/services/offlineQueue.test.ts",
+    "src/services/reportValidation.test.ts"
+  ]
+}

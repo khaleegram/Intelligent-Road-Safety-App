@@ -23,10 +23,11 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { createAccident } from '../services/firestore';
 import { fetchGeocodeSuggestions, type GeocodeSuggestion } from '../services/geocoding';
 import { offlineQueue } from '../services/offlineQueue';
+import { buildAccidentRecord, validateReportDraft } from '../services/reportValidation';
 import { useAdminAccess } from '../hooks/useAdminAccess';
 import { useI18n } from '../i18n';
 import { type Theme, useTheme } from '../theme';
-import type { AccidentSeverity, AccidentRecord } from '../types';
+import type { AccidentSeverity } from '../types';
 
 const severityOptions: AccidentSeverity[] = [
   'Fatal',
@@ -136,7 +137,7 @@ export default function ReportScreen() {
     return () => subscription.remove();
   }, []);
 
-  const handleMapPress = (event: MapboxGL.OnPressEvent) => {
+  const handleMapPress = (event: any) => {
     const coords = event.geometry?.coordinates;
     if (!coords || coords.length < 2) return;
     const [lng, lat] = coords;
@@ -164,42 +165,48 @@ export default function ReportScreen() {
   };
 
   const submit = async () => {
-    const lat = Number(latitude);
-    const lng = Number(longitude);
-    const vehicles = vehicleCount;
-    const casualties = casualtyCount;
+    const validation = validateReportDraft({
+      latitude,
+      longitude,
+      severity,
+      roadType: roadTypeValue,
+      weather: weatherValue,
+      vehicleCount,
+      casualtyCount,
+      timestamp: editTimestamp ? timestamp : undefined,
+    });
 
-    if (Number.isNaN(lat) || Number.isNaN(lng)) {
-      Alert.alert(t('report.invalidLocationTitle'), t('report.invalidLocationText'));
-      return;
-    }
-
-    if (!roadTypeValue) {
-      Alert.alert(t('report.missingFieldTitle'), t('report.missingRoadTypeText'));
-      return;
-    }
-
-    if (!weatherValue) {
-      Alert.alert(t('report.missingFieldTitle'), t('report.missingWeatherText'));
-      return;
-    }
-
-    if (vehicles < 0 || casualties < 0) {
+    if (!validation.ok) {
+      if (validation.code === 'invalid_location') {
+        Alert.alert(t('report.invalidLocationTitle'), t('report.invalidLocationText'));
+        return;
+      }
+      if (validation.code === 'missing_road_type') {
+        Alert.alert(t('report.missingFieldTitle'), t('report.missingRoadTypeText'));
+        return;
+      }
+      if (validation.code === 'missing_weather') {
+        Alert.alert(t('report.missingFieldTitle'), t('report.missingWeatherText'));
+        return;
+      }
       Alert.alert(t('report.invalidCountsTitle'), t('report.invalidCountsText'));
       return;
     }
 
-    const record: AccidentRecord = {
-      latitude: lat,
-      longitude: lng,
-      timestamp: editTimestamp && timestamp.trim().length > 0 ? timestamp.trim() : new Date().toISOString(),
-      severity,
-      road_type: roadTypeValue,
-      weather: weatherValue,
-      vehicle_count: vehicles,
-      casualty_count: casualties,
-      created_at: new Date().toISOString(),
-    };
+    const nowIso = new Date().toISOString();
+    const record = buildAccidentRecord(
+      {
+        latitude,
+        longitude,
+        severity,
+        roadType: roadTypeValue,
+        weather: weatherValue,
+        vehicleCount,
+        casualtyCount,
+        timestamp: editTimestamp ? timestamp : undefined,
+      },
+      nowIso
+    );
 
     try {
       setSubmitting(true);
@@ -246,7 +253,7 @@ export default function ReportScreen() {
           isAdmin={isAdmin}
           onToggle={(next) => {
             if (next === 'admin') {
-              navigation.navigate('Admin');
+              navigation.navigate('Admin', undefined);
             }
           }}
         />
@@ -333,7 +340,9 @@ export default function ReportScreen() {
             <MapboxGL.PointAnnotation
               id="selected-location"
               coordinate={selectedCoordinate}
-            />
+            >
+              <View />
+            </MapboxGL.PointAnnotation>
           ) : null}
         </MapboxGL.MapView>
         <Text style={styles.mapHint}>{t('report.mapHint')}</Text>
