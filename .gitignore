@@ -68,3 +68,5 @@ backend/pipeline/.env.local
 backend/ml/exports/
 # ML artifacts
 backend/ml/model_registry/
+# Python virtual envs
+**/.venv/

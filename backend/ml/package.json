@@ -1,0 +1,11 @@
+{
+  "name": "ml-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "export:accidents": "node export-accidents.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.2"
+  }
+}
