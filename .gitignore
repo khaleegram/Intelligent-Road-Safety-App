@@ -64,3 +64,7 @@ build/
 # Local-only env files
 .env.local
 backend/pipeline/.env.local
+# ML exports
+backend/ml/exports/
+# ML artifacts
+backend/ml/model_registry/
