@@ -76,6 +76,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /admin_alerts/{alertId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow create: if isSignedIn() &&

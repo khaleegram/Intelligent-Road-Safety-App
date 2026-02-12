@@ -62,6 +62,22 @@ Optional flags:
 ## What it does
 - Reads accidents from Firestore
 - Aggregates into grid cells
-- Writes computed hotspots to `hotspots` collection
+- Writes computed hotspots to `hotspots` collection (with explanation fields)
+- Writes spike alerts to `admin_alerts` when 24h report volume exceeds `ALERT_SPIKE_THRESHOLD` (default `5`)
 
 This makes the app update **without any rebuild**.
+
+## Admin role endpoint
+If you run `node server.mjs`, you also get:
+- `POST /run` -> execute hotspot pipeline
+- `POST /admin/roles` -> grant/revoke admin roles securely
+
+`/admin/roles` requirements:
+- Bearer Firebase ID token of an existing admin user
+- JSON body:
+```json
+{
+  "targetUid": "user_uid_here",
+  "isAdmin": true
+}
+```

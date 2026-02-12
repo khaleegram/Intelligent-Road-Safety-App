@@ -59,6 +59,12 @@ async function seedData() {
       reporter_uid: 'researcher1',
       verified: false,
     });
+    await setDoc(doc(db, 'admin_alerts/a1'), {
+      type: 'spike',
+      level: 'warning',
+      message: 'spike',
+      created_at: new Date().toISOString(),
+    });
   });
 }
 
@@ -132,6 +138,13 @@ test('admin can verify report but non-admin cannot', async () => {
       severity: 'Fatal',
     })
   );
+});
+
+test('admin alerts are admin-readable only', async () => {
+  const adminDb = testEnv.authenticatedContext('adminUser').firestore();
+  const researcherDb = testEnv.authenticatedContext('researcher1').firestore();
+  await assertSucceeds(getDoc(doc(adminDb, 'admin_alerts/a1')));
+  await assertFails(getDoc(doc(researcherDb, 'admin_alerts/a1')));
 });
 
 test.after(async () => {

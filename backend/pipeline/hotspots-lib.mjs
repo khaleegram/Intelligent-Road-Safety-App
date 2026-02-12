@@ -67,6 +67,9 @@ export const initFirestore = () => {
 
 export const computeHotspots = ({ accidents, threshold, gridSizeDegrees, timeBucket }) => {
   const cells = new Map();
+  const now = Date.now();
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
 
   for (const accident of accidents) {
     const lat = Number(accident.latitude);
@@ -79,12 +82,21 @@ export const computeHotspots = ({ accidents, threshold, gridSizeDegrees, timeBuc
     const weight = severityWeight[accident.severity] ?? 1;
     const severity = accident.severity ?? 'Minor';
 
+    const parsedTimestamp = Date.parse(timestamp);
+    const ageMs = Number.isNaN(parsedTimestamp) ? Number.POSITIVE_INFINITY : now - parsedTimestamp;
     const existing = cells.get(key);
     if (existing) {
       existing.count += 1;
       existing.riskScore += weight;
       existing.sumLat += lat;
       existing.sumLng += lng;
+      existing.severityCounts[severity] = (existing.severityCounts[severity] ?? 0) + 1;
+      if (ageMs <= sevenDaysMs) {
+        existing.recent_7d_count += 1;
+      }
+      if (ageMs <= thirtyDaysMs) {
+        existing.recent_30d_count += 1;
+      }
       existing.maxSeverity = weight >= existing.maxSeverityWeight ? severity : existing.maxSeverity;
       existing.maxSeverityWeight = Math.max(existing.maxSeverityWeight, weight);
       existing.latestTimestamp = existing.latestTimestamp > timestamp ? existing.latestTimestamp : timestamp;
@@ -94,6 +106,14 @@ export const computeHotspots = ({ accidents, threshold, gridSizeDegrees, timeBuc
         riskScore: weight,
         sumLat: lat,
         sumLng: lng,
+        severityCounts: {
+          Fatal: severity === 'Fatal' ? 1 : 0,
+          Critical: severity === 'Critical' ? 1 : 0,
+          Minor: severity === 'Minor' ? 1 : 0,
+          'Damage Only': severity === 'Damage Only' ? 1 : 0,
+        },
+        recent_7d_count: ageMs <= sevenDaysMs ? 1 : 0,
+        recent_30d_count: ageMs <= thirtyDaysMs ? 1 : 0,
         maxSeverity: severity,
         maxSeverityWeight: weight,
         latestTimestamp: timestamp,
@@ -112,6 +132,9 @@ export const computeHotspots = ({ accidents, threshold, gridSizeDegrees, timeBuc
       severity_level: cell.maxSeverity,
       accident_count: cell.count,
       last_updated: cell.latestTimestamp,
+      severity_counts: cell.severityCounts,
+      recent_7d_count: cell.recent_7d_count,
+      recent_30d_count: cell.recent_30d_count,
       model_version: 'baseline-v1',
       time_bucket: timeBucket,
     });
@@ -147,7 +170,7 @@ export const runHotspotPipeline = async ({
   });
 
   if (dryRun) {
-    return { accidents: accidents.length, hotspots: hotspots.length, written: 0 };
+    return { accidents: accidents.length, hotspots: hotspots.length, written: 0, alertsWritten: 0 };
   }
 
   const batchSize = 450;
@@ -163,5 +186,29 @@ export const runHotspotPipeline = async ({
     await batch.commit();
   }
 
-  return { accidents: accidents.length, hotspots: hotspots.length, written };
+  let alertsWritten = 0;
+  const last24hCount = accidents.filter((item) => {
+    const timestamp = item.created_at || item.timestamp;
+    const parsed = Date.parse(timestamp);
+    if (Number.isNaN(parsed)) return false;
+    return parsed >= Date.now() - 24 * 60 * 60 * 1000;
+  }).length;
+  const spikeThreshold = Number(process.env.ALERT_SPIKE_THRESHOLD ?? 5);
+  if (last24hCount >= spikeThreshold) {
+    const alertId = `spike_${new Date().toISOString().slice(0, 13)}`;
+    await db.collection('admin_alerts').doc(alertId).set(
+      {
+        type: 'spike',
+        level: 'warning',
+        message: `${last24hCount} reports in the last 24 hours`,
+        count_24h: last24hCount,
+        threshold: spikeThreshold,
+        created_at: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+    alertsWritten += 1;
+  }
+
+  return { accidents: accidents.length, hotspots: hotspots.length, written, alertsWritten };
 };

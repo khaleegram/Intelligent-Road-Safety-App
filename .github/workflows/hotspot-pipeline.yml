@@ -30,4 +30,5 @@ jobs:
           HOTSPOT_THRESHOLD: '3'
           HOTSPOT_GRID: '0.01'
           HOTSPOT_TIME_BUCKET: 'all'
+          ALERT_SPIKE_THRESHOLD: '5'
         run: node compute-hotspots.mjs --threshold 3 --grid 0.01
