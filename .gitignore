@@ -27,6 +27,7 @@ ios/*.xcodeproj/xcuserdata/
 
 # Firebase
 .firebase/
+/secrets/
 
 # OS
 .DS_Store

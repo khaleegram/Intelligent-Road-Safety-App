@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -7,6 +7,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Button from '../components/Button';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { fetchAccidents } from '../services/firestore';
+import { accidentsToCsv } from '../services/exportCsv';
+import { shareCsvExport } from '../services/exportShare';
 import { useAdminAccess } from '../hooks/useAdminAccess';
 import { type Theme, useTheme } from '../theme';
 import type { AccidentRecord, AccidentSeverity } from '../types';
@@ -20,7 +22,7 @@ export default function ResearchDataScreen() {
   const [accidents, setAccidents] = useState<AccidentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [severityFilter, setSeverityFilter] = useState<AccidentSeverity | 'All'>('All');
-  const [daysFilter, setDaysFilter] = useState<7 | 30 | 'All'>('All');
+  const [daysFilter, setDaysFilter] = useState<1 | 7 | 30 | 'All'>('All');
   const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
@@ -63,24 +65,11 @@ export default function ResearchDataScreen() {
       Alert.alert('No rows', 'There is no data to export for current filters.');
       return;
     }
-    const header = ['id', 'created_at', 'severity', 'road_type', 'weather', 'vehicle_count', 'casualty_count', 'verified'].join(',');
-    const rows = filtered.map((item) =>
-      [
-        item.id ?? item.request_id ?? '',
-        item.created_at ?? item.timestamp,
-        item.severity,
-        item.road_type,
-        item.weather,
-        item.vehicle_count,
-        item.casualty_count,
-        item.verified === true ? 'true' : 'false',
-      ]
-        .map((value) => `"${String(value).replace(/"/g, '""')}"`)
-        .join(',')
-    );
-    await Share.share({
+    const csv = accidentsToCsv(filtered, { includeSensitive: true });
+    await shareCsvExport({
       title: 'Research dataset CSV',
-      message: [header, ...rows].join('\n'),
+      filePrefix: 'research-dataset',
+      csv,
     });
   };
 
@@ -121,14 +110,14 @@ export default function ResearchDataScreen() {
             ))}
           </View>
           <View style={styles.filterRow}>
-            {(['All', 7, 30] as const).map((value) => (
+            {(['All', 1, 7, 30] as const).map((value) => (
               <Pressable
                 key={String(value)}
                 style={[styles.chip, daysFilter === value && styles.chipActive]}
                 onPress={() => setDaysFilter(value)}
               >
                 <Text style={[styles.chipText, daysFilter === value && styles.chipTextActive]}>
-                  {value === 'All' ? 'All days' : `${value}d`}
+                  {value === 'All' ? 'All days' : value === 1 ? '24h' : `${value}d`}
                 </Text>
               </Pressable>
             ))}
@@ -136,6 +125,7 @@ export default function ResearchDataScreen() {
           <TextInput
             style={styles.input}
             placeholder="Search road/weather text"
+            placeholderTextColor={theme.colors.text}
             value={searchText}
             onChangeText={setSearchText}
           />

@@ -39,9 +39,9 @@ if (hasMapboxToken) {
 
 const getSeverityColors = () => ({
   Fatal: '#e11d48',
-  Critical: '#16a34a',
+  Critical: '#f97316',
   Minor: '#facc15',
-  'Damage Only': '#111827',
+  'Damage Only': '#2563eb',
 });
 
 const getSeverityIconColors = () => ({
@@ -151,6 +151,7 @@ export default function MapScreen() {
   const [routePickMode, setRoutePickMode] = useState(false);
   const [routeSearchFocused, setRouteSearchFocused] = useState(false);
   const [mapSectionHeight, setMapSectionHeight] = useState(0);
+  const [mapSectionOffsetY, setMapSectionOffsetY] = useState(0);
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState<
@@ -161,6 +162,30 @@ export default function MapScreen() {
     null
   );
   const notifiedHotspotsRef = useRef<Set<string>>(new Set());
+
+  const newestAccidentTs = useMemo(() => {
+    if (accidents.length === 0) return 0;
+    return accidents.reduce((latest, item) => {
+      const ts = Date.parse(item.created_at ?? item.timestamp);
+      if (Number.isNaN(ts)) return latest;
+      return Math.max(latest, ts);
+    }, 0);
+  }, [accidents]);
+
+  const newestHotspotTs = useMemo(() => {
+    if (hotspots.length === 0) return 0;
+    return hotspots.reduce((latest, item) => {
+      const ts = Date.parse(item.last_updated ?? '');
+      if (Number.isNaN(ts)) return latest;
+      return Math.max(latest, ts);
+    }, 0);
+  }, [hotspots]);
+
+  const hotspotsMayBeStale =
+    hotspots.length > 0 &&
+    newestAccidentTs > 0 &&
+    newestHotspotTs > 0 &&
+    newestAccidentTs > newestHotspotTs;
 
   useEffect(() => {
     const requestPermissions = async () => {
@@ -363,6 +388,26 @@ export default function MapScreen() {
       zoomLevel: 12,
       animationMode: 'flyTo',
       animationDuration: 800,
+    });
+  };
+
+  const focusHotspotOnMap = (hotspot: HotspotRecord) => {
+    setSelectedHotspot(hotspot);
+    setHotspotCallout(hotspot);
+    setFollowUser(false);
+    const target: [number, number] = [hotspot.center_lng, hotspot.center_lat];
+    if (isMapFullscreen) {
+      setIsMapFullscreen(false);
+    }
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, mapSectionOffsetY - theme.spacing.sm),
+      animated: true,
+    });
+    cameraRef.current?.setCamera({
+      centerCoordinate: target,
+      zoomLevel: 14,
+      animationMode: 'flyTo',
+      animationDuration: 900,
     });
   };
 
@@ -720,6 +765,7 @@ export default function MapScreen() {
             pointerEvents="box-none"
             onLayout={(event) => {
               setMapSectionHeight(event.nativeEvent.layout.height);
+              setMapSectionOffsetY(event.nativeEvent.layout.y);
             }}
           >
             {mapContent}
@@ -749,6 +795,14 @@ export default function MapScreen() {
             <View style={styles.banner}>
               <Text style={styles.bannerTitle}>{t('map.firebaseMissingTitle')}</Text>
               <Text style={styles.bannerText}>{firebaseNotice}</Text>
+            </View>
+          ) : null}
+          {hotspotsMayBeStale ? (
+            <View style={styles.banner}>
+              <Text style={styles.bannerTitle}>Hotspots may be outdated</Text>
+              <Text style={styles.bannerText}>
+                New accidents exist after last hotspot update. Re-run the hotspot pipeline to refresh hotspot points.
+              </Text>
             </View>
           ) : null}
           {loading ? (
@@ -785,6 +839,31 @@ export default function MapScreen() {
                 <Text style={styles.legendText}>{t('map.legendAccident')}</Text>
               </View>
             </View>
+            <View style={styles.severityLegend}>
+              <View style={styles.legendItem}>
+                <View style={[styles.severityDot, { backgroundColor: severityColors.Fatal }]} />
+                <Text style={styles.legendText}>Fatal</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View
+                  style={[styles.severityDot, { backgroundColor: severityColors.Critical }]}
+                />
+                <Text style={styles.legendText}>Critical</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.severityDot, { backgroundColor: severityColors.Minor }]} />
+                <Text style={styles.legendText}>Minor</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View
+                  style={[
+                    styles.severityDot,
+                    { backgroundColor: severityColors['Damage Only'] },
+                  ]}
+                />
+                <Text style={styles.legendText}>Damage Only</Text>
+              </View>
+            </View>
           </View>
           <View style={styles.routeCard}>
             <View style={styles.sectionHeader}>
@@ -796,7 +875,7 @@ export default function MapScreen() {
               placeholder={t('map.routeSearchPlaceholder')}
               value={routeQuery}
               onChangeText={setRouteQuery}
-              placeholderTextColor={theme.colors.textSoft}
+              placeholderTextColor={theme.colors.text}
               onFocus={() => {
                 setRouteSearchFocused(true);
                 scrollRef.current?.scrollTo({
@@ -830,6 +909,7 @@ export default function MapScreen() {
                 value={routeLat}
                 onChangeText={setRouteLat}
                 keyboardType="numeric"
+                placeholderTextColor={theme.colors.text}
               />
               <TextInput
                 style={styles.routeInput}
@@ -837,6 +917,7 @@ export default function MapScreen() {
                 value={routeLng}
                 onChangeText={setRouteLng}
                 keyboardType="numeric"
+                placeholderTextColor={theme.colors.text}
               />
             </View>
             <View style={styles.routeActions}>
@@ -896,7 +977,11 @@ export default function MapScreen() {
           {routeDestination && warningHotspots.length > 0 ? (
             <View style={styles.routeHotspotList}>
               {warningHotspots.map((hotspot) => (
-                <View key={hotspot.area_id} style={styles.routeHotspotRow}>
+                <Pressable
+                  key={hotspot.area_id}
+                  style={styles.routeHotspotRow}
+                  onPress={() => focusHotspotOnMap(hotspot)}
+                >
                   <View style={styles.routeHotspotHeader}>
                     <Text style={styles.routeHotspotTitle}>
                       {t('map.hotspotTitle')} - {hotspot.severity_level}
@@ -912,7 +997,8 @@ export default function MapScreen() {
                       lng: hotspot.center_lng.toFixed(5),
                     })}
                   </Text>
-                </View>
+                  <Text style={styles.routeHotspotTapHint}>Tap to open hotspot popup</Text>
+                </Pressable>
               ))}
             </View>
           ) : null}
@@ -1110,6 +1196,19 @@ const createStyles = (theme: Theme) =>
     fontSize: 11,
     color: theme.colors.textMuted,
   },
+  severityLegend: {
+    marginTop: theme.spacing.sm,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+  },
+  severityDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.surface,
+  },
   routeCard: {
     marginTop: theme.spacing.sm,
     padding: theme.spacing.sm,
@@ -1141,6 +1240,7 @@ const createStyles = (theme: Theme) =>
     paddingVertical: 8,
     fontSize: 12,
     backgroundColor: theme.colors.surfaceAlt,
+    color: theme.colors.text,
   },
   routeActions: {
     marginTop: theme.spacing.sm,
@@ -1259,6 +1359,12 @@ const createStyles = (theme: Theme) =>
     marginTop: 4,
     fontSize: 11,
     color: theme.colors.textSoft,
+  },
+  routeHotspotTapHint: {
+    marginTop: 6,
+    fontSize: 11,
+    color: theme.colors.accent,
+    fontWeight: '600',
   },
   routeAlert: {
     marginTop: theme.spacing.sm,

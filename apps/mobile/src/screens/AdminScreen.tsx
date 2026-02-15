@@ -3,7 +3,6 @@ import {
   Alert,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -22,6 +21,8 @@ import {
   fetchHotspots,
   fetchUsers,
 } from '../services/firestore';
+import { accidentsToCsv } from '../services/exportCsv';
+import { shareCsvExport } from '../services/exportShare';
 import { updateUserAdminRole } from '../services/adminRoles';
 import { useAdminAccess } from '../hooks/useAdminAccess';
 import { useI18n } from '../i18n';
@@ -58,7 +59,7 @@ export default function AdminScreen({
   const [savingRoleUid, setSavingRoleUid] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [severityFilter, setSeverityFilter] = useState<AccidentSeverity | 'All'>('All');
-  const [daysFilter, setDaysFilter] = useState<7 | 30 | 'All'>('All');
+  const [daysFilter, setDaysFilter] = useState<1 | 7 | 30 | 'All'>('All');
   const [regionFilter, setRegionFilter] = useState('');
   const [activeTab, setActiveTab] = useState<'hotspots' | 'reports' | 'users'>(
     initialTab === 'overview' ? 'hotspots' : initialTab
@@ -90,7 +91,7 @@ export default function AdminScreen({
   }, [authLoading, isAdmin]);
 
   const verifiedCount = accidents.filter((item) => item.verified === true).length;
-  const latestAccidents = accidents
+  const filteredAccidents = accidents
     .filter((item) => {
       const severityMatch =
         severityFilter === 'All' ? true : item.severity === severityFilter;
@@ -107,8 +108,8 @@ export default function AdminScreen({
         daysMatch = !Number.isNaN(created) && created >= cutoff;
       }
       return severityMatch && regionMatch && daysMatch;
-    })
-    .slice(0, 50);
+    });
+  const latestAccidents = filteredAccidents.slice(0, 50);
   const latestHotspots = hotspots.slice(0, 20);
   const latestUsers = users.slice(0, 20);
   const recent24hCount = accidents.filter((item) => {
@@ -119,43 +120,43 @@ export default function AdminScreen({
   const latestAlert = alerts[0];
 
   const exportReportsCsv = async () => {
-    if (latestAccidents.length === 0) {
+    if (filteredAccidents.length === 0) {
       Alert.alert('No data', 'No report rows match the current filters.');
       return;
     }
-
-    const header = [
-      'id',
-      'request_id',
-      'created_at',
-      'severity',
-      'road_type',
-      'weather',
-      'vehicle_count',
-      'casualty_count',
-      'verified',
-    ].join(',');
-
-    const rows = latestAccidents.map((item) =>
-      [
-        item.id ?? '',
-        item.request_id ?? '',
-        item.created_at ?? item.timestamp,
-        item.severity,
-        item.road_type,
-        item.weather,
-        item.vehicle_count,
-        item.casualty_count,
-        item.verified === true ? 'true' : 'false',
-      ]
-        .map((value) => `"${String(value).replace(/"/g, '""')}"`)
-        .join(',')
-    );
-    const csv = [header, ...rows].join('\n');
-    await Share.share({
+    const csv = accidentsToCsv(filteredAccidents, { includeSensitive: true });
+    await shareCsvExport({
       title: 'Accident reports CSV',
-      message: csv,
+      filePrefix: 'admin-accident-reports',
+      csv,
     });
+  };
+
+  const exportSpike24hCsv = async () => {
+    const last24h = accidents.filter((item) => {
+      const created = Date.parse(item.created_at ?? item.timestamp);
+      if (Number.isNaN(created)) return false;
+      return created >= Date.now() - 24 * 60 * 60 * 1000;
+    });
+
+    if (last24h.length === 0) {
+      Alert.alert('No spike rows', 'No accident reports found in the last 24 hours.');
+      return;
+    }
+
+    const csv = accidentsToCsv(last24h, { includeSensitive: true });
+    await shareCsvExport({
+      title: 'Spike 24h reports CSV',
+      filePrefix: 'spike-24h-reports',
+      csv,
+    });
+  };
+
+  const inspectSpike = () => {
+    setActiveTab('reports');
+    setDaysFilter(1);
+    setSeverityFilter('All');
+    setRegionFilter('');
   };
 
   const toggleRole = async (user: UserProfile) => {
@@ -222,6 +223,10 @@ export default function AdminScreen({
             <Text style={styles.spikeText}>
               {recent24hCount} reports were submitted in the last 24 hours.
             </Text>
+            <View style={styles.spikeActions}>
+              <Button label="Review 24h reports" variant="secondary" onPress={inspectSpike} />
+              <Button label="Export 24h CSV" variant="secondary" onPress={exportSpike24hCsv} />
+            </View>
           </View>
         ) : null}
         {latestAlert ? (
@@ -229,6 +234,9 @@ export default function AdminScreen({
             <Text style={styles.sectionTitle}>Latest admin alert</Text>
             <Text style={styles.listTitle}>{latestAlert.message}</Text>
             <Text style={styles.listMeta}>{latestAlert.created_at}</Text>
+            {latestAlert.type === 'spike' ? (
+              <Button label="Investigate spike now" variant="secondary" onPress={inspectSpike} />
+            ) : null}
           </View>
         ) : null}
 
@@ -356,7 +364,7 @@ export default function AdminScreen({
               ))}
             </View>
             <View style={styles.filterRow}>
-              {(['All', 7, 30] as const).map((value) => (
+              {(['All', 1, 7, 30] as const).map((value) => (
                 <Pressable
                   key={String(value)}
                   style={[
@@ -371,7 +379,7 @@ export default function AdminScreen({
                       daysFilter === value && styles.chipTextActive,
                     ]}
                   >
-                    {value === 'All' ? 'All days' : `${value}d`}
+                    {value === 'All' ? 'All days' : value === 1 ? '24h' : `${value}d`}
                   </Text>
                 </Pressable>
               ))}
@@ -379,6 +387,7 @@ export default function AdminScreen({
             <TextInput
               style={styles.filterInput}
               placeholder="Filter by road/weather text"
+              placeholderTextColor={theme.colors.text}
               value={regionFilter}
               onChangeText={setRegionFilter}
             />
@@ -652,6 +661,10 @@ const createStyles = (theme: Theme) =>
     spikeText: {
       fontSize: 11,
       color: '#b45309',
+    },
+    spikeActions: {
+      marginTop: 6,
+      gap: 6,
     },
     alertCard: {
       marginTop: theme.spacing.xs,

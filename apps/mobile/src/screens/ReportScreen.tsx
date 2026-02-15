@@ -284,7 +284,7 @@ export default function ReportScreen() {
             placeholder={t('report.searchPlaceholder')}
             value={locationQuery}
             onChangeText={setLocationQuery}
-            placeholderTextColor={theme.colors.textSoft}
+            placeholderTextColor={theme.colors.text}
           />
           {locationSearching ? (
             <Text style={styles.searchHint}>{t('report.searching')}</Text>
@@ -383,7 +383,7 @@ export default function ReportScreen() {
             value={latitude}
             onChangeText={setLatitude}
             keyboardType="numeric"
-            placeholderTextColor={theme.colors.textSoft}
+            placeholderTextColor={theme.colors.text}
           />
           <TextInput
             style={styles.input}
@@ -391,7 +391,7 @@ export default function ReportScreen() {
             value={longitude}
             onChangeText={setLongitude}
             keyboardType="numeric"
-            placeholderTextColor={theme.colors.textSoft}
+            placeholderTextColor={theme.colors.text}
           />
         </>
       ) : null}
@@ -417,7 +417,7 @@ export default function ReportScreen() {
           placeholder={t('report.timestampPlaceholder')}
           value={timestamp}
           onChangeText={setTimestamp}
-          placeholderTextColor={theme.colors.textSoft}
+          placeholderTextColor={theme.colors.text}
         />
       ) : null}
 
@@ -480,7 +480,7 @@ export default function ReportScreen() {
           placeholder={t('report.describeRoadType')}
           value={roadTypeCustom}
           onChangeText={setRoadTypeCustom}
-          placeholderTextColor={theme.colors.textSoft}
+          placeholderTextColor={theme.colors.text}
         />
       ) : null}
       <Text style={styles.sectionTitle}>{t('report.weather')}</Text>
@@ -516,7 +516,7 @@ export default function ReportScreen() {
           placeholder={t('report.describeWeather')}
           value={weatherCustom}
           onChangeText={setWeatherCustom}
-          placeholderTextColor={theme.colors.textSoft}
+          placeholderTextColor={theme.colors.text}
         />
       ) : null}
       <Text style={styles.sectionTitle}>{t('report.counts')}</Text>

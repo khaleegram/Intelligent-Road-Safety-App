@@ -1,189 +1,230 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { initializeApp, getApps } from "firebase/app";
-import { collection, doc, getFirestore, writeBatch } from "firebase/firestore";
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { initializeApp, cert, applicationDefault } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load .env manually (since you're doing it already)
-const envPath = path.resolve(__dirname, "..", ".env");
-if (fs.existsSync(envPath)) {
-  const content = fs.readFileSync(envPath, "utf-8");
-  for (const line of content.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
-    if (!match) continue;
-    const key = match[1];
-    let value = match[2].trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    process.env[key] = value;
-  }
-}
-
-const requiredKeys = [
-  "EXPO_PUBLIC_FIREBASE_API_KEY",
-  "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN",
-  "EXPO_PUBLIC_FIREBASE_PROJECT_ID",
-  "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET",
-  "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
-  "EXPO_PUBLIC_FIREBASE_APP_ID",
-];
-
-const missing = requiredKeys.filter((key) => !process.env[key]);
-if (missing.length > 0) {
-  console.error(`Missing Firebase env vars in .env: ${missing.join(", ")}`);
-  process.exit(1);
-}
-
-const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
+const args = process.argv.slice(2);
+const getArg = (name, fallback) => {
+  const idx = args.indexOf(`--${name}`);
+  if (idx === -1) return fallback;
+  const value = args[idx + 1];
+  if (!value || value.startsWith('--')) return fallback;
+  return value;
 };
 
-const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const hasFlag = (name) => args.includes(`--${name}`);
+
+const TARGET_COUNT = Number(getArg('count', '1400'));
+const DRY_RUN = hasFlag('dry-run');
 
 const nowIso = () => new Date().toISOString();
-const pick = (items) => items[Math.floor(Math.random() * items.length)];
 const rand = (min, max) => Math.random() * (max - min) + min;
 const randInt = (min, max) => Math.floor(rand(min, max + 1));
+const pick = (items) => items[Math.floor(Math.random() * items.length)];
 
-// ------------------------
-// Hotspot settings
-// ------------------------
-
-// Your algo: grid 0.01°, threshold 3
-const GRID_SIZE = 0.01;
-const THRESHOLD = 3;
-
-// Abuja-ish bounding box (city + nearby suburbs).
-const BBOX = {
-  minLat: 8.85,
-  maxLat: 9.25,
-  minLon: 7.20,
-  maxLon: 7.70,
-};
-
-// “within ±0.001° so points stay in one cell”
-const CLUSTER_JITTER = 0.001;
-
-// How many hotspot cells to create
-const HOTSPOT_CELLS = 100;
-
-// Points per hotspot (must meet threshold)
-const MIN_POINTS_PER_CELL = THRESHOLD; // 3
-const MAX_POINTS_PER_CELL = 8;
-
-// Random variety fields
-const roadTypes = ["Urban", "Highway", "Residential", "Rural", "Intersection"];
-const weatherTypes = ["Clear", "Rain", "Fog", "Night", "Harmattan"];
-const severities = ["Fatal", "Critical", "Minor", "Damage Only"];
-
-// Pick a random point, then snap it to the *center* of its grid cell
-const randomCellCenter = () => {
-  const lat = rand(BBOX.minLat, BBOX.maxLat);
-  const lon = rand(BBOX.minLon, BBOX.maxLon);
-
-  const gx = Math.floor(lon / GRID_SIZE);
-  const gy = Math.floor(lat / GRID_SIZE);
-
-  const centerLon = gx * GRID_SIZE + GRID_SIZE / 2;
-  const centerLat = gy * GRID_SIZE + GRID_SIZE / 2;
-
-  return { centerLat, centerLon, key: `${gx}:${gy}` };
-};
-
-// Make N accidents inside the same cell (jitter stays inside)
-const buildClusterAccidents = (centerLat, centerLon, n) => {
-  const list = [];
-  for (let i = 0; i < n; i++) {
-    const accident = {
-      latitude: centerLat + rand(-CLUSTER_JITTER, CLUSTER_JITTER),
-      longitude: centerLon + rand(-CLUSTER_JITTER, CLUSTER_JITTER),
-      timestamp: nowIso(),
-      severity: pick(severities),
-      road_type: pick(roadTypes),
-      weather: pick(weatherTypes),
-      vehicle_count: randInt(1, 4),
-      casualty_count: randInt(0, 3),
-      created_at: nowIso(),
-    };
-    list.push(accident);
+const weightedPick = (items) => {
+  const total = items.reduce((sum, item) => sum + item.weight, 0);
+  let cursor = rand(0, total);
+  for (const item of items) {
+    cursor -= item.weight;
+    if (cursor <= 0) return item.value;
   }
-  return list;
+  return items[items.length - 1].value;
 };
 
-const seedAccidents = async () => {
-  const accidentsRef = collection(db, "accidents");
+const parseJsonEnvIfNeeded = (value) => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
 
-  // 1) Select 100 unique grid cells across Abuja bbox
-  const selected = new Map(); // key -> {centerLat, centerLon}
-  let guard = 0;
+const initAdmin = () => {
+  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH
+    ? path.resolve(process.cwd(), process.env.FIREBASE_SERVICE_ACCOUNT_PATH)
+    : null;
 
-  while (selected.size < HOTSPOT_CELLS && guard < 200000) {
-    guard++;
-    const c = randomCellCenter();
+  if (serviceAccountPath && fs.existsSync(serviceAccountPath)) {
+    const raw = fs.readFileSync(serviceAccountPath, 'utf8');
+    initializeApp({ credential: cert(JSON.parse(raw)) });
+    return;
+  }
 
-    // Keep unique cells only
-    if (!selected.has(c.key)) {
-      selected.set(c.key, { centerLat: c.centerLat, centerLon: c.centerLon });
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    const parsed = parseJsonEnvIfNeeded(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    if (parsed) {
+      initializeApp({ credential: cert(parsed) });
+      return;
     }
   }
 
-  if (selected.size < HOTSPOT_CELLS) {
-    console.error(
-      `Could only select ${selected.size} unique cells. Expand bbox or reduce HOTSPOT_CELLS.`
-    );
-    process.exit(1);
+  initializeApp({ credential: applicationDefault() });
+};
+
+// Routes emphasize Abuja to northern cities/highways.
+const CORRIDORS = [
+  {
+    name: 'A1 Abuja-Kaduna-Zaria-Kano-Katsina',
+    weight: 5,
+    points: [
+      { lat: 9.0765, lon: 7.3986 }, // Abuja
+      { lat: 10.5222, lon: 7.4383 }, // Kaduna
+      { lat: 11.0855, lon: 7.7199 }, // Zaria
+      { lat: 12.0022, lon: 8.5920 }, // Kano
+      { lat: 12.9908, lon: 7.6006 }, // Katsina
+    ],
+  },
+  {
+    name: 'A3 Abuja-Jos-Bauchi-Gombe',
+    weight: 4,
+    points: [
+      { lat: 9.0765, lon: 7.3986 }, // Abuja
+      { lat: 9.8965, lon: 8.8583 }, // Jos
+      { lat: 10.3158, lon: 9.8442 }, // Bauchi
+      { lat: 10.2904, lon: 11.1697 }, // Gombe
+    ],
+  },
+  {
+    name: 'Abuja-Minna-Kaduna connector',
+    weight: 3,
+    points: [
+      { lat: 9.0765, lon: 7.3986 }, // Abuja
+      { lat: 9.6152, lon: 6.5569 }, // Minna
+      { lat: 10.5222, lon: 7.4383 }, // Kaduna
+    ],
+  },
+  {
+    name: 'Kano-Dutse-Katsina northern arc',
+    weight: 2,
+    points: [
+      { lat: 12.0022, lon: 8.5920 }, // Kano
+      { lat: 11.7562, lon: 9.3380 }, // Dutse
+      { lat: 12.9908, lon: 7.6006 }, // Katsina
+    ],
+  },
+];
+
+const ROAD_TYPES = ['Highway', 'Highway', 'Highway', 'Rural', 'Intersection'];
+const WEATHER_TYPES = [
+  { value: 'Clear', weight: 6 },
+  { value: 'Rain', weight: 4 },
+  { value: 'Fog', weight: 2 },
+  { value: 'Night', weight: 4 },
+  { value: 'Harmattan', weight: 3 },
+];
+const SEVERITIES = [
+  { value: 'Fatal', weight: 1 },
+  { value: 'Critical', weight: 2 },
+  { value: 'Minor', weight: 6 },
+  { value: 'Damage Only', weight: 3 },
+];
+
+const SEGMENT_JITTER_DEG = 0.0032; // roughly ~300m at this latitude
+const SEED_REPORTER_UID = process.env.SEED_REPORTER_UID ?? 'seed_bot_highway_north';
+
+const randomDateIso = (daysBack = 540) => {
+  const now = Date.now();
+  const earliest = now - daysBack * 24 * 60 * 60 * 1000;
+  const ts = rand(earliest, now);
+  return new Date(ts).toISOString();
+};
+
+const interpolate = (a, b, t) => {
+  return {
+    lat: a.lat + (b.lat - a.lat) * t,
+    lon: a.lon + (b.lon - a.lon) * t,
+  };
+};
+
+const pickCorridor = () => weightedPick(CORRIDORS.map((c) => ({ value: c, weight: c.weight })));
+
+const buildHighwayAccident = (index) => {
+  const corridor = pickCorridor();
+  const segmentIndex = randInt(0, corridor.points.length - 2);
+  const start = corridor.points[segmentIndex];
+  const end = corridor.points[segmentIndex + 1];
+  const t = rand(0.03, 0.97);
+  const base = interpolate(start, end, t);
+
+  const severity = weightedPick(SEVERITIES);
+  const casualtyCount =
+    severity === 'Fatal'
+      ? randInt(1, 6)
+      : severity === 'Critical'
+        ? randInt(1, 4)
+        : severity === 'Minor'
+          ? randInt(0, 2)
+          : randInt(0, 1);
+  const vehicleCount = severity === 'Damage Only' ? randInt(1, 3) : randInt(1, 5);
+
+  const createdAt = randomDateIso();
+  const requestId = `seed_${Date.now()}_${String(index).padStart(4, '0')}_${randInt(1000, 9999)}`;
+
+  return {
+    request_id: requestId,
+    latitude: base.lat + rand(-SEGMENT_JITTER_DEG, SEGMENT_JITTER_DEG),
+    longitude: base.lon + rand(-SEGMENT_JITTER_DEG, SEGMENT_JITTER_DEG),
+    timestamp: createdAt,
+    severity,
+    road_type: pick(ROAD_TYPES),
+    weather: weightedPick(WEATHER_TYPES),
+    vehicle_count: vehicleCount,
+    casualty_count: casualtyCount,
+    created_at: createdAt,
+    reporter_uid: SEED_REPORTER_UID,
+  };
+};
+
+const main = async () => {
+  initAdmin();
+  const db = getFirestore();
+  const accidentsRef = db.collection('accidents');
+
+  if (Number.isNaN(TARGET_COUNT) || TARGET_COUNT < 1000) {
+    throw new Error('--count must be a number >= 1000');
   }
 
-  // 2) Generate accidents for each hotspot cell
-  const allAccidents = [];
-  for (const { centerLat, centerLon } of selected.values()) {
-    const n = randInt(MIN_POINTS_PER_CELL, MAX_POINTS_PER_CELL);
-    allAccidents.push(...buildClusterAccidents(centerLat, centerLon, n));
+  const records = Array.from({ length: TARGET_COUNT }, (_, idx) => buildHighwayAccident(idx));
+
+  if (DRY_RUN) {
+    console.log(`[dry-run] Generated ${records.length} highway accidents.`);
+    console.log(`[dry-run] Example doc id: ${records[0]?.request_id ?? 'none'}`);
+    console.log(`[dry-run] Generated at: ${nowIso()}`);
+    return;
   }
 
-  // 3) Batched write (Firestore limit: 500 ops per batch)
-  let created = 0;
-  let batch = writeBatch(db);
+  let batch = db.batch();
   let ops = 0;
+  let written = 0;
 
-  for (const accident of allAccidents) {
-    const ref = doc(accidentsRef); // auto-id
-    batch.set(ref, accident);
-    created++;
-    ops++;
+  for (const record of records) {
+    const ref = accidentsRef.doc(record.request_id);
+    batch.set(ref, record, { merge: true });
+    ops += 1;
+    written += 1;
 
     if (ops >= 450) {
       await batch.commit();
-      batch = writeBatch(db);
+      batch = db.batch();
       ops = 0;
     }
   }
 
-  if (ops > 0) await batch.commit();
+  if (ops > 0) {
+    await batch.commit();
+  }
 
   console.log(
-    `Seed complete. Created ${created} accident records across ${HOTSPOT_CELLS} hotspot cells.`
+    `Seed complete. Wrote ${written} highway-focused accidents for Abuja->Northern corridors at ${nowIso()}.`
   );
-  process.exit(0);
 };
 
-seedAccidents().catch((error) => {
-  console.error("Seed failed", error);
+main().catch((error) => {
+  console.error('Seed failed:', error);
   process.exit(1);
 });

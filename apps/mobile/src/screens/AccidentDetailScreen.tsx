@@ -151,6 +151,7 @@ export default function AccidentDetailScreen() {
             value={notes}
             onChangeText={setNotes}
             placeholder="Add review notes"
+            placeholderTextColor={theme.colors.text}
             multiline
           />
           <View style={styles.actionRow}>
