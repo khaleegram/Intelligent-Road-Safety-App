@@ -6,8 +6,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 
 import Button from '../components/Button';
+import IslandBar from '../components/IslandBar';
+import IslandCard from '../components/IslandCard';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { fetchAccidentById, fetchHotspots, updateAccidentVerification } from '../services/firestore';
+import { useAdminAccess } from '../hooks/useAdminAccess';
 import { type Theme, useTheme } from '../theme';
 import type { AccidentRecord, HotspotRecord } from '../types';
 
@@ -17,11 +20,13 @@ export default function AccidentDetailScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'AccidentDetail'>>();
+  const { isAdmin } = useAdminAccess();
   const [accident, setAccident] = useState<AccidentRecord | null>(null);
   const [hotspots, setHotspots] = useState<HotspotRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notes, setNotes] = useState('');
+  const [compactBar, setCompactBar] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -111,13 +116,37 @@ export default function AccidentDetailScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
+        stickyHeaderIndices={[0]}
+        scrollEventThrottle={16}
+        onScroll={(event) => {
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          if (shouldCompact !== compactBar) {
+            setCompactBar(shouldCompact);
+          }
+        }}
         contentContainerStyle={[
           styles.content,
           { paddingBottom: theme.spacing.lg + insets.bottom },
         ]}
       >
-        <Text style={styles.title}>Accident Detail</Text>
-        <View style={styles.card}>
+        <View style={styles.headerWrap}>
+          <IslandBar
+            eyebrow="Details"
+            title="Accident detail"
+            subtitle="Report review and verification"
+            mode={isAdmin ? 'admin' : 'public'}
+            compact={compactBar}
+            isAdmin={isAdmin}
+            onToggle={(next) => {
+              if (next === 'public') {
+                navigation.navigate('Public', { screen: 'Map' });
+              } else {
+                navigation.navigate('Admin', undefined);
+              }
+            }}
+          />
+        </View>
+        <IslandCard style={styles.card}>
           <Text style={styles.label}>ID</Text>
           <Text style={styles.value}>{accident.id ?? accident.request_id ?? '--'}</Text>
           <Text style={styles.label}>Severity</Text>
@@ -138,9 +167,9 @@ export default function AccidentDetailScreen() {
           <Text style={styles.value}>{accident.reporter_uid ?? '--'}</Text>
           <Text style={styles.label}>Submitted</Text>
           <Text style={styles.value}>{accident.created_at ?? accident.timestamp}</Text>
-        </View>
+        </IslandCard>
 
-        <View style={styles.card}>
+        <IslandCard style={styles.card}>
           <Text style={styles.sectionTitle}>Verification</Text>
           <Text style={styles.value}>Verified: {accident.verified ? 'Yes' : 'No'}</Text>
           <Text style={styles.value}>Verified by: {accident.verified_by ?? '--'}</Text>
@@ -151,7 +180,7 @@ export default function AccidentDetailScreen() {
             value={notes}
             onChangeText={setNotes}
             placeholder="Add review notes"
-            placeholderTextColor={theme.colors.text}
+            placeholderTextColor={theme.tokens.color.textSecondary}
             multiline
           />
           <View style={styles.actionRow}>
@@ -167,10 +196,10 @@ export default function AccidentDetailScreen() {
               disabled={saving}
             />
           </View>
-        </View>
+        </IslandCard>
 
         {relatedHotspot ? (
-          <View style={styles.card}>
+          <IslandCard style={styles.card}>
             <Text style={styles.sectionTitle}>Related hotspot</Text>
             <Text style={styles.value}>
               {relatedHotspot.severity_level} ({relatedHotspot.accident_count} accidents)
@@ -182,7 +211,7 @@ export default function AccidentDetailScreen() {
                 navigation.navigate('HotspotDetail', { hotspotId: relatedHotspot.area_id })
               }
             />
-          </View>
+          </IslandCard>
         ) : null}
 
         <Button label="Back" variant="secondary" onPress={() => navigation.goBack()} />
@@ -207,17 +236,17 @@ const createStyles = (theme: Theme) =>
       padding: theme.spacing.lg,
       gap: theme.spacing.sm,
     },
+    headerWrap: {
+      marginBottom: theme.tokens.spacing[2],
+      backgroundColor: theme.tokens.color.background,
+      paddingBottom: theme.tokens.spacing[2],
+    },
     title: {
       fontSize: 18,
       fontWeight: '700',
       color: theme.colors.text,
     },
     card: {
-      padding: theme.spacing.sm,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: theme.radius.md,
-      backgroundColor: theme.colors.surface,
       gap: 6,
     },
     sectionTitle: {

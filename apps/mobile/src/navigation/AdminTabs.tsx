@@ -23,11 +23,29 @@ export default function AdminTabs() {
       initialRouteName="Dashboard"
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: theme.colors.accent,
-        tabBarInactiveTintColor: theme.colors.textSoft,
+        tabBarActiveTintColor: theme.tokens.color.primary,
+        tabBarInactiveTintColor: theme.tokens.color.textSecondary,
         tabBarStyle: {
-          borderTopColor: theme.colors.border,
-          backgroundColor: theme.colors.surface,
+          position: 'absolute',
+          left: 14,
+          right: 14,
+          bottom: 12,
+          borderTopWidth: 0,
+          borderRadius: theme.tokens.radius.xl,
+          backgroundColor: theme.tokens.color.surface,
+          height: 66,
+          paddingTop: 8,
+          paddingBottom: 8,
+          shadowColor: theme.tokens.elevation.md.shadowColor,
+          shadowOpacity: theme.tokens.elevation.md.shadowOpacity,
+          shadowRadius: theme.tokens.elevation.md.shadowRadius,
+          shadowOffset: theme.tokens.elevation.md.shadowOffset,
+          elevation: theme.tokens.elevation.md.elevation,
+        },
+        tabBarItemStyle: { minHeight: 48 },
+        tabBarLabelStyle: {
+          fontSize: theme.tokens.typography.fontSize.xs,
+          fontWeight: theme.tokens.typography.fontWeight.medium,
         },
         tabBarIcon: ({ color, size }) => {
           const iconName =
@@ -38,7 +56,7 @@ export default function AdminTabs() {
                 : route.name === 'Reports'
                   ? 'warning'
                   : 'people';
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName} size={size + 2} color={color} />;
         },
       })}
     >

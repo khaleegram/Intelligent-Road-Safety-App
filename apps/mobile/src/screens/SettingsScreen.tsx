@@ -11,6 +11,7 @@ import {
 
 import Button from '../components/Button';
 import IslandBar from '../components/IslandBar';
+import IslandCard from '../components/IslandCard';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { auth } from '../services/firebase';
 import { offlineQueue } from '../services/offlineQueue';
@@ -29,6 +30,7 @@ export default function SettingsScreen() {
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
+  const [compactBar, setCompactBar] = useState(false);
 
   useEffect(() => {
     offlineQueue.getAll().then((items) => setQueuedCount(items.length));
@@ -82,26 +84,37 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
+        stickyHeaderIndices={[0]}
+        scrollEventThrottle={16}
+        onScroll={(event) => {
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          if (shouldCompact !== compactBar) {
+            setCompactBar(shouldCompact);
+          }
+        }}
         contentContainerStyle={[
           styles.content,
           { paddingBottom: theme.spacing.lg + insets.bottom },
         ]}
       >
-        <IslandBar
-          eyebrow={t('settings.eyebrow')}
-          title={t('settings.title')}
-          subtitle={t('settings.subtitle')}
-          mode="public"
-          isAdmin={isAdmin}
-          onToggle={(next) => {
-            if (next === 'admin') {
-              navigation.navigate('Admin', undefined);
-            }
-          }}
-        />
+        <View style={styles.headerWrap}>
+          <IslandBar
+            eyebrow={t('settings.eyebrow')}
+            title={t('settings.title')}
+            subtitle={t('settings.subtitle')}
+            mode="public"
+            compact={compactBar}
+            isAdmin={isAdmin}
+            onToggle={(next) => {
+              if (next === 'admin') {
+                navigation.navigate('Admin', undefined);
+              }
+            }}
+          />
+        </View>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.general')}</Text>
-          <View style={styles.card}>
+          <IslandCard style={styles.card}>
             <Text style={styles.label}>{t('settings.theme')}</Text>
             <Text style={styles.value}>
               {mode === 'light' ? t('settings.light') : t('settings.dark')}
@@ -115,8 +128,8 @@ export default function SettingsScreen() {
               variant="secondary"
               onPress={toggleTheme}
             />
-          </View>
-          <View style={styles.card}>
+          </IslandCard>
+          <IslandCard style={styles.card}>
             <Text style={styles.label}>{t('settings.language')}</Text>
             <Text style={styles.value}>{t(`language.${language}`)}</Text>
             <View style={styles.languageRow}>
@@ -129,12 +142,12 @@ export default function SettingsScreen() {
                 />
               ))}
             </View>
-          </View>
+          </IslandCard>
         </View>
 
         <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('settings.data')}</Text>
-        <View style={styles.card}>
+        <IslandCard style={styles.card}>
           <Text style={styles.label}>{t('settings.offlineCache')}</Text>
           <Text style={styles.value}>{t('settings.offlineCacheDesc')}</Text>
           <Button
@@ -142,8 +155,8 @@ export default function SettingsScreen() {
             variant="secondary"
             onPress={refreshCache}
           />
-        </View>
-        <View style={styles.card}>
+        </IslandCard>
+        <IslandCard style={styles.card}>
           <Text style={styles.label}>{t('settings.queuedReports')}</Text>
           <Text style={styles.value}>
             {t('settings.waitingToSync', { count: queuedCount })}
@@ -153,18 +166,18 @@ export default function SettingsScreen() {
             variant="secondary"
             onPress={syncNow}
           />
-        </View>
+        </IslandCard>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('settings.about')}</Text>
-        <View style={styles.card}>
+        <IslandCard style={styles.card}>
           <Text style={styles.label}>{t('settings.miniTitle')}</Text>
           <Text style={styles.value}>
             {t('settings.miniDesc')}
           </Text>
-        </View>
-        <View style={styles.card}>
+        </IslandCard>
+        <IslandCard style={styles.card}>
           <Text style={styles.label}>{t('settings.adminDashboard')}</Text>
           <Text style={styles.value}>{t('settings.adminDashboardDesc')}</Text>
           <Button
@@ -173,12 +186,12 @@ export default function SettingsScreen() {
             onPress={() => navigation.navigate('Admin', undefined)}
             disabled={!isAdmin}
           />
-        </View>
+        </IslandCard>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('settings.adminAccess')}</Text>
-        <View style={styles.card}>
+        <IslandCard style={styles.card}>
           {authUser ? (
             <>
               <Text style={styles.label}>{t('settings.signedIn')}</Text>
@@ -198,7 +211,7 @@ export default function SettingsScreen() {
           ) : (
             <Text style={styles.value}>{t('admin.signInPrompt')}</Text>
           )}
-        </View>
+        </IslandCard>
       </View>
 
       <View style={styles.actions}>
@@ -224,43 +237,43 @@ const createStyles = (theme: Theme) =>
     backgroundColor: theme.colors.bg,
   },
   content: {
-    padding: theme.spacing.lg,
+    padding: theme.tokens.spacing[4],
+    gap: theme.tokens.spacing[4],
+  },
+  headerWrap: {
+    marginBottom: theme.tokens.spacing[2],
+    backgroundColor: theme.tokens.color.background,
+    paddingBottom: theme.tokens.spacing[2],
   },
   section: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.tokens.spacing[2],
   },
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.text,
-    marginBottom: 6,
+    fontSize: theme.tokens.typography.fontSize.xs,
+    fontWeight: theme.tokens.typography.fontWeight.bold,
+    color: theme.tokens.color.textPrimary,
+    marginBottom: theme.tokens.spacing[2],
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   card: {
-    padding: theme.spacing.sm,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    gap: 6,
+    gap: theme.tokens.spacing[2],
   },
   label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.text,
+    fontSize: theme.tokens.typography.fontSize.sm,
+    fontWeight: theme.tokens.typography.fontWeight.semibold,
+    color: theme.tokens.color.textPrimary,
   },
   value: {
-    fontSize: 12,
-    color: theme.colors.textMuted,
+    fontSize: theme.tokens.typography.fontSize.sm,
+    color: theme.tokens.color.textSecondary,
   },
   actions: {
-    marginTop: 12,
-    gap: 10,
+    marginTop: theme.tokens.spacing[3],
+    gap: theme.tokens.spacing[2],
   },
   languageRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: theme.tokens.spacing[2],
   },
   });

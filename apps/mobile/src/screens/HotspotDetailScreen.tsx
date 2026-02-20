@@ -6,8 +6,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 
 import Button from '../components/Button';
+import IslandBar from '../components/IslandBar';
+import IslandCard from '../components/IslandCard';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { fetchAccidents, fetchHotspotById } from '../services/firestore';
+import { useAdminAccess } from '../hooks/useAdminAccess';
 import { type Theme, useTheme } from '../theme';
 import type { AccidentRecord, HotspotRecord } from '../types';
 
@@ -19,9 +22,11 @@ export default function HotspotDetailScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'HotspotDetail'>>();
+  const { isAdmin } = useAdminAccess();
   const [hotspot, setHotspot] = useState<HotspotRecord | null>(null);
   const [accidents, setAccidents] = useState<AccidentRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [compactBar, setCompactBar] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -114,13 +119,37 @@ export default function HotspotDetailScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
+        stickyHeaderIndices={[0]}
+        scrollEventThrottle={16}
+        onScroll={(event) => {
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          if (shouldCompact !== compactBar) {
+            setCompactBar(shouldCompact);
+          }
+        }}
         contentContainerStyle={[
           styles.content,
           { paddingBottom: theme.spacing.lg + insets.bottom },
         ]}
       >
-        <Text style={styles.title}>Hotspot Detail</Text>
-        <View style={styles.card}>
+        <View style={styles.headerWrap}>
+          <IslandBar
+            eyebrow="Details"
+            title="Hotspot detail"
+            subtitle="Risk explanation and linked incidents"
+            mode={isAdmin ? 'admin' : 'public'}
+            compact={compactBar}
+            isAdmin={isAdmin}
+            onToggle={(next) => {
+              if (next === 'public') {
+                navigation.navigate('Public', { screen: 'Map' });
+              } else {
+                navigation.navigate('Admin', undefined);
+              }
+            }}
+          />
+        </View>
+        <IslandCard style={styles.card}>
           <Text style={styles.label}>Area ID</Text>
           <Text style={styles.value}>{hotspot.area_id}</Text>
           <Text style={styles.label}>Severity</Text>
@@ -133,9 +162,9 @@ export default function HotspotDetailScreen() {
           </Text>
           <Text style={styles.label}>Last updated</Text>
           <Text style={styles.value}>{hotspot.last_updated}</Text>
-        </View>
+        </IslandCard>
 
-        <View style={styles.card}>
+        <IslandCard style={styles.card}>
           <Text style={styles.sectionTitle}>Why this hotspot</Text>
           <Text style={styles.value}>{explanation}</Text>
           <Text style={styles.value}>
@@ -144,9 +173,9 @@ export default function HotspotDetailScreen() {
           <Text style={styles.value}>
             Current total incidents near center: {linkedAccidents.length}
           </Text>
-        </View>
+        </IslandCard>
 
-        <View style={styles.card}>
+        <IslandCard style={styles.card}>
           <Text style={styles.sectionTitle}>Linked incidents</Text>
           {linkedAccidents.length === 0 ? (
             <Text style={styles.muted}>No linked incidents found in this range.</Text>
@@ -167,7 +196,7 @@ export default function HotspotDetailScreen() {
               </View>
             ))
           )}
-        </View>
+        </IslandCard>
 
         <Button label="Back" variant="secondary" onPress={() => navigation.goBack()} />
       </ScrollView>
@@ -191,17 +220,17 @@ const createStyles = (theme: Theme) =>
       padding: theme.spacing.lg,
       gap: theme.spacing.sm,
     },
+    headerWrap: {
+      marginBottom: theme.tokens.spacing[2],
+      backgroundColor: theme.tokens.color.background,
+      paddingBottom: theme.tokens.spacing[2],
+    },
     title: {
       fontSize: 18,
       fontWeight: '700',
       color: theme.colors.text,
     },
     card: {
-      padding: theme.spacing.sm,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: theme.radius.md,
-      backgroundColor: theme.colors.surface,
       gap: 6,
     },
     row: {

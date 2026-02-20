@@ -17,6 +17,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Button from '../components/Button';
+import GradientChip from '../components/GradientChip';
+import IslandCard from '../components/IslandCard';
 import IslandBar from '../components/IslandBar';
 import { mapboxToken, missingFirebaseKeys } from '../config/env';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -74,6 +76,7 @@ export default function ReportScreen() {
   const [casualtyCount, setCasualtyCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [compactBar, setCompactBar] = useState(false);
   const roadTypeValue = useMemo(
     () => (roadTypePreset === 'Other' ? roadTypeCustom.trim() : roadTypePreset),
     [roadTypeCustom, roadTypePreset]
@@ -238,6 +241,14 @@ export default function ReportScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
+        stickyHeaderIndices={[0]}
+        scrollEventThrottle={16}
+        onScroll={(event) => {
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          if (shouldCompact !== compactBar) {
+            setCompactBar(shouldCompact);
+          }
+        }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         contentContainerStyle={[
@@ -245,18 +256,21 @@ export default function ReportScreen() {
           { paddingBottom: theme.spacing.lg + tabBarHeight },
         ]}
       >
-        <IslandBar
-          eyebrow={t('report.eyebrow')}
-          title={t('report.title')}
-          subtitle={t('report.subtitle')}
-          mode="public"
-          isAdmin={isAdmin}
-          onToggle={(next) => {
-            if (next === 'admin') {
-              navigation.navigate('Admin', undefined);
-            }
-          }}
-        />
+        <View style={styles.headerWrap}>
+          <IslandBar
+            eyebrow={t('report.eyebrow')}
+            title={t('report.title')}
+            subtitle={t('report.subtitle')}
+            mode="public"
+            compact={compactBar}
+            isAdmin={isAdmin}
+            onToggle={(next) => {
+              if (next === 'admin') {
+                navigation.navigate('Admin', undefined);
+              }
+            }}
+          />
+        </View>
       {!hasMapboxToken ? (
         <View style={styles.banner}>
           <Text style={styles.bannerTitle}>{t('report.mapboxMissingTitle')}</Text>
@@ -277,14 +291,14 @@ export default function ReportScreen() {
       ) : null}
 
       {hasMapboxToken ? (
-        <View style={styles.searchCard}>
+        <IslandCard style={styles.searchCard}>
           <Text style={styles.sectionTitle}>{t('report.searchTitle')}</Text>
           <TextInput
             style={styles.searchInput}
             placeholder={t('report.searchPlaceholder')}
             value={locationQuery}
             onChangeText={setLocationQuery}
-            placeholderTextColor={theme.colors.text}
+            placeholderTextColor={theme.tokens.color.textSecondary}
           />
           {locationSearching ? (
             <Text style={styles.searchHint}>{t('report.searching')}</Text>
@@ -312,11 +326,11 @@ export default function ReportScreen() {
               fullWidth
             />
           </View>
-        </View>
+        </IslandCard>
       ) : null}
 
       {hasMapboxToken ? (
-        <View style={styles.mapCard}>
+        <IslandCard style={styles.mapCard}>
           <MapboxGL.MapView style={styles.map} onPress={handleMapPress}>
             <MapboxGL.Camera
               zoomLevel={selectedCoordinate ? 15 : 11}
@@ -346,9 +360,10 @@ export default function ReportScreen() {
           ) : null}
         </MapboxGL.MapView>
         <Text style={styles.mapHint}>{t('report.mapHint')}</Text>
-      </View>
+      </IslandCard>
       ) : null}
 
+      <IslandCard style={styles.formIsland}>
       <Text style={styles.sectionTitle}>{t('report.sectionLocation')}</Text>
       <View style={styles.inlineHeader}>
         <Text style={styles.inlineTitle}>{t('report.coordinates')}</Text>
@@ -383,7 +398,7 @@ export default function ReportScreen() {
             value={latitude}
             onChangeText={setLatitude}
             keyboardType="numeric"
-            placeholderTextColor={theme.colors.text}
+            placeholderTextColor={theme.tokens.color.textSecondary}
           />
           <TextInput
             style={styles.input}
@@ -391,7 +406,7 @@ export default function ReportScreen() {
             value={longitude}
             onChangeText={setLongitude}
             keyboardType="numeric"
-            placeholderTextColor={theme.colors.text}
+            placeholderTextColor={theme.tokens.color.textSecondary}
           />
         </>
       ) : null}
@@ -417,32 +432,24 @@ export default function ReportScreen() {
           placeholder={t('report.timestampPlaceholder')}
           value={timestamp}
           onChangeText={setTimestamp}
-          placeholderTextColor={theme.colors.text}
+          placeholderTextColor={theme.tokens.color.textSecondary}
         />
       ) : null}
+      </IslandCard>
 
+      <IslandCard style={styles.formIsland}>
       <Text style={styles.sectionTitle}>{t('report.incidentDetails')}</Text>
       <View style={styles.section}>
         <Text style={styles.label}>{t('report.severity')}</Text>
         <View style={styles.row}>
           {severityOptions.map((option) => (
-            <Pressable
+            <GradientChip
               key={option}
-              style={[
-                styles.chip,
-                severity === option && styles.chipSelected,
-              ]}
+              style={styles.chip}
+              active={severity === option}
+              label={t(`options.severity.${option}`)}
               onPress={() => setSeverity(option)}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  severity === option && styles.chipTextSelected,
-                ]}
-              >
-                {t(`options.severity.${option}`)}
-              </Text>
-            </Pressable>
+            />
           ))}
         </View>
       </View>
@@ -450,28 +457,18 @@ export default function ReportScreen() {
       <Text style={styles.sectionTitle}>{t('report.roadType')}</Text>
       <View style={styles.row}>
         {roadTypeOptions.map((option) => (
-          <Pressable
+          <GradientChip
             key={option}
-            style={[
-              styles.chip,
-              roadTypePreset === option && styles.chipSelected,
-            ]}
+            style={styles.chip}
+            active={roadTypePreset === option}
+            label={t(`options.roadType.${option}`)}
             onPress={() => {
               setRoadTypePreset(option);
               if (option !== 'Other') {
                 setRoadTypeCustom('');
               }
             }}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                roadTypePreset === option && styles.chipTextSelected,
-              ]}
-            >
-              {t(`options.roadType.${option}`)}
-            </Text>
-          </Pressable>
+          />
         ))}
       </View>
       {roadTypePreset === 'Other' ? (
@@ -480,34 +477,24 @@ export default function ReportScreen() {
           placeholder={t('report.describeRoadType')}
           value={roadTypeCustom}
           onChangeText={setRoadTypeCustom}
-          placeholderTextColor={theme.colors.text}
+          placeholderTextColor={theme.tokens.color.textSecondary}
         />
       ) : null}
       <Text style={styles.sectionTitle}>{t('report.weather')}</Text>
       <View style={styles.row}>
         {weatherOptions.map((option) => (
-          <Pressable
+          <GradientChip
             key={option}
-            style={[
-              styles.chip,
-              weatherPreset === option && styles.chipSelected,
-            ]}
+            style={styles.chip}
+            active={weatherPreset === option}
+            label={t(`options.weather.${option}`)}
             onPress={() => {
               setWeatherPreset(option);
               if (option !== 'Other') {
                 setWeatherCustom('');
               }
             }}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                weatherPreset === option && styles.chipTextSelected,
-              ]}
-            >
-              {t(`options.weather.${option}`)}
-            </Text>
-          </Pressable>
+          />
         ))}
       </View>
       {weatherPreset === 'Other' ? (
@@ -516,7 +503,7 @@ export default function ReportScreen() {
           placeholder={t('report.describeWeather')}
           value={weatherCustom}
           onChangeText={setWeatherCustom}
-          placeholderTextColor={theme.colors.text}
+          placeholderTextColor={theme.tokens.color.textSecondary}
         />
       ) : null}
       <Text style={styles.sectionTitle}>{t('report.counts')}</Text>
@@ -556,6 +543,7 @@ export default function ReportScreen() {
           </Pressable>
         </View>
       </View>
+      </IslandCard>
 
       {submitting ? (
         <View style={styles.loading}>
@@ -585,7 +573,15 @@ const createStyles = (theme: Theme) =>
   },
   content: {
     padding: theme.spacing.lg,
-    gap: theme.spacing.sm,
+    gap: theme.spacing.md,
+  },
+  headerWrap: {
+    marginBottom: theme.tokens.spacing[2],
+    backgroundColor: theme.tokens.color.background,
+    paddingBottom: theme.tokens.spacing[2],
+  },
+  formIsland: {
+    gap: theme.spacing.md,
   },
   inlineHeader: {
     flexDirection: 'row',
@@ -650,35 +646,36 @@ const createStyles = (theme: Theme) =>
     color: theme.colors.textMuted,
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: theme.tokens.typography.fontSize.sm,
     fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: 6,
+    marginBottom: theme.tokens.spacing[2],
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
   banner: {
-    marginBottom: 12,
-    padding: 10,
+    marginBottom: theme.tokens.spacing[3],
+    padding: theme.tokens.spacing[3],
     borderRadius: theme.radius.sm,
-    backgroundColor: '#fff7ed',
+    backgroundColor: theme.tokens.color.surfaceElevated,
     borderWidth: 1,
-    borderColor: '#fed7aa',
+    borderColor: theme.tokens.color.border,
   },
   bannerTitle: {
-    fontSize: 12,
+    fontSize: theme.tokens.typography.fontSize.sm,
     fontWeight: '700',
-    color: '#9a3412',
+    color: theme.tokens.color.textPrimary,
   },
   bannerText: {
     marginTop: 4,
-    fontSize: 11,
-    color: '#9a3412',
+    fontSize: theme.tokens.typography.fontSize.xs,
+    color: theme.tokens.color.textSecondary,
   },
   input: {
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.sm,
+    minHeight: 44,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: theme.spacing.sm,
@@ -686,28 +683,23 @@ const createStyles = (theme: Theme) =>
     color: theme.colors.text,
   },
   mapCard: {
-    marginBottom: 16,
-    borderRadius: theme.radius.lg,
+    marginBottom: theme.tokens.spacing[4],
+    borderRadius: theme.radius.xl,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
+    padding: 0,
   },
   searchCard: {
-    marginBottom: theme.spacing.sm,
-    borderRadius: theme.radius.md,
-    padding: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
+    marginBottom: theme.spacing.md,
+    gap: theme.spacing.md,
   },
   searchInput: {
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 12,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: theme.tokens.typography.fontSize.sm,
     backgroundColor: theme.colors.surfaceAlt,
     color: theme.colors.text,
   },
@@ -783,23 +775,7 @@ const createStyles = (theme: Theme) =>
     textAlign: 'center',
   },
   chip: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: theme.colors.surfaceAlt,
-  },
-  chipSelected: {
-    borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.accent,
-  },
-  chipText: {
-    fontSize: 12,
-    color: theme.colors.textMuted,
-  },
-  chipTextSelected: {
-    color: '#fff',
+    flexGrow: 0,
   },
   suggestionList: {
     marginTop: theme.spacing.sm,

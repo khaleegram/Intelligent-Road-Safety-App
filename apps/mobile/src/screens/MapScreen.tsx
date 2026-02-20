@@ -19,6 +19,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import Button from '../components/Button';
 import IslandBar from '../components/IslandBar';
+import IslandCard from '../components/IslandCard';
 import { mapboxToken, missingFirebaseKeys } from '../config/env';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { fetchDirections } from '../services/directions';
@@ -36,20 +37,6 @@ const hasMapboxToken = mapboxToken.length > 0;
 if (hasMapboxToken) {
   MapboxGL.setAccessToken(mapboxToken);
 }
-
-const getSeverityColors = () => ({
-  Fatal: '#e11d48',
-  Critical: '#f97316',
-  Minor: '#facc15',
-  'Damage Only': '#2563eb',
-});
-
-const getSeverityIconColors = () => ({
-  Fatal: '#ffffff',
-  Critical: '#ffffff',
-  Minor: '#111827',
-  'Damage Only': '#ffffff',
-});
 
 const defaultCenter: [number, number] = [8.6753, 9.082];
 const nigeriaBounds: { ne: [number, number]; sw: [number, number] } = {
@@ -123,8 +110,24 @@ export default function MapScreen() {
     missingFirebaseKeys.length > 0
       ? t('map.firebaseMissingText', { keys: missingFirebaseKeys.join(', ') })
       : '';
-  const severityColors = getSeverityColors();
-  const severityIconColors = getSeverityIconColors();
+  const severityColors = useMemo(
+    () => ({
+      Fatal: theme.tokens.color.error,
+      Critical: theme.tokens.color.warning,
+      Minor: theme.tokens.color.secondary,
+      'Damage Only': theme.tokens.color.info,
+    }),
+    [theme]
+  );
+  const severityIconColors = useMemo(
+    () => ({
+      Fatal: theme.tokens.color.textInverse,
+      Critical: theme.tokens.color.textInverse,
+      Minor: theme.tokens.color.textPrimary,
+      'Damage Only': theme.tokens.color.textInverse,
+    }),
+    [theme]
+  );
   const scrollRef = useRef<ScrollView>(null);
   const lastHotspotTapRef = useRef(0);
   const cameraRef = useRef<any>(null);
@@ -154,6 +157,7 @@ export default function MapScreen() {
   const [mapSectionOffsetY, setMapSectionOffsetY] = useState(0);
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
+  const [compactBar, setCompactBar] = useState(false);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState<
     boolean | null
   >(null);
@@ -608,7 +612,7 @@ export default function MapScreen() {
                 style={{
                   textField: ['get', 'point_count_abbreviated'],
                   textSize: 11,
-                  textColor: '#fff',
+                  textColor: theme.tokens.color.textInverse,
                 }}
               />
               <MapboxGL.CircleLayer
@@ -739,6 +743,14 @@ export default function MapScreen() {
       <ScrollView
         ref={scrollRef}
         scrollEnabled={scrollEnabled}
+        stickyHeaderIndices={[0]}
+        scrollEventThrottle={16}
+        onScroll={(event) => {
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          if (shouldCompact !== compactBar) {
+            setCompactBar(shouldCompact);
+          }
+        }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         contentContainerStyle={[
@@ -752,6 +764,7 @@ export default function MapScreen() {
             title={t('map.title')}
             subtitle={t('map.subtitle')}
             mode="public"
+            compact={compactBar}
             isAdmin={isAdmin}
                 onToggle={(next) => {
               if (next === 'admin') {
@@ -760,16 +773,18 @@ export default function MapScreen() {
             }}
           />
         </View>
-          <View
-            style={styles.mapSection}
-            pointerEvents="box-none"
-            onLayout={(event) => {
+          <IslandCard
+            style={styles.mapSectionOuter}
+            contentStyle={styles.mapSectionInner}
+            onLayout={(event: any) => {
               setMapSectionHeight(event.nativeEvent.layout.height);
               setMapSectionOffsetY(event.nativeEvent.layout.y);
             }}
           >
-            {mapContent}
-          </View>
+            <View style={styles.mapSection} pointerEvents="box-none">
+              {mapContent}
+            </View>
+          </IslandCard>
           <View style={styles.panel}>
           {!hasMapboxToken ? (
             <View style={styles.banner}>
@@ -822,7 +837,7 @@ export default function MapScreen() {
               </Text>
             </View>
           ) : null}
-          <View style={styles.card}>
+          <IslandCard style={styles.card}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t('map.legendTitle')}</Text>
               <Text style={styles.sectionHint}>{t('map.legendHint')}</Text>
@@ -830,7 +845,11 @@ export default function MapScreen() {
             <View style={styles.legend}>
               <View style={styles.legendItem}>
                 <View style={[styles.marker, styles.legendMarker]}>
-                  <Ionicons name="warning" size={10} color="#ffffff" />
+                  <Ionicons
+                    name="warning"
+                    size={10}
+                    color={theme.tokens.color.textInverse}
+                  />
                 </View>
                 <Text style={styles.legendText}>{t('map.legendHotspot')}</Text>
               </View>
@@ -864,8 +883,8 @@ export default function MapScreen() {
                 <Text style={styles.legendText}>Damage Only</Text>
               </View>
             </View>
-          </View>
-          <View style={styles.routeCard}>
+          </IslandCard>
+          <IslandCard style={styles.routeCard}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t('map.routeTitle')}</Text>
               <Text style={styles.sectionHint}>{t('map.routeHint')}</Text>
@@ -875,7 +894,7 @@ export default function MapScreen() {
               placeholder={t('map.routeSearchPlaceholder')}
               value={routeQuery}
               onChangeText={setRouteQuery}
-              placeholderTextColor={theme.colors.text}
+              placeholderTextColor={theme.tokens.color.textSecondary}
               onFocus={() => {
                 setRouteSearchFocused(true);
                 scrollRef.current?.scrollTo({
@@ -909,7 +928,7 @@ export default function MapScreen() {
                 value={routeLat}
                 onChangeText={setRouteLat}
                 keyboardType="numeric"
-                placeholderTextColor={theme.colors.text}
+                placeholderTextColor={theme.tokens.color.textSecondary}
               />
               <TextInput
                 style={styles.routeInput}
@@ -917,29 +936,23 @@ export default function MapScreen() {
                 value={routeLng}
                 onChangeText={setRouteLng}
                 keyboardType="numeric"
-                placeholderTextColor={theme.colors.text}
+                placeholderTextColor={theme.tokens.color.textSecondary}
               />
             </View>
             <View style={styles.routeActions}>
-              <Pressable style={styles.routeButton} onPress={setRoute}>
-                <Text style={styles.routeButtonText}>{t('map.routeSet')}</Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.routeButtonSecondary,
-                  routePickMode && styles.routeButtonSecondaryActive,
-                ]}
+              <Button label={t('map.routeSet')} onPress={setRoute} style={styles.routeButton} />
+              <Button
+                label={routePickMode ? t('map.routePickActive') : t('map.routePick')}
+                variant="secondary"
                 onPress={() => setRoutePickMode((prev) => !prev)}
-              >
-                <Text style={styles.routeButtonSecondaryText}>
-                  {routePickMode
-                    ? t('map.routePickActive')
-                    : t('map.routePick')}
-                </Text>
-              </Pressable>
-              <Pressable style={styles.routeButtonSecondary} onPress={clearRoute}>
-                <Text style={styles.routeButtonSecondaryText}>{t('map.routeClear')}</Text>
-              </Pressable>
+                style={styles.routeButtonSecondary}
+              />
+              <Button
+                label={t('map.routeClear')}
+                variant="secondary"
+                onPress={clearRoute}
+                style={styles.routeButtonSecondary}
+              />
             </View>
           <Text style={styles.routeHint}>
             {t('map.routeWarningRadius', { meters: warningThresholdMeters })}
@@ -1002,9 +1015,9 @@ export default function MapScreen() {
               ))}
             </View>
           ) : null}
-        </View>
+        </IslandCard>
           {selectedHotspot ? (
-            <View style={styles.detailCard}>
+            <IslandCard variant="accent" style={styles.detailCard}>
               <View style={styles.detailRow}>
                 <Text style={styles.detailTitle}>{t('map.hotspotTitle')}</Text>
                 <Pressable onPress={() => setSelectedHotspot(null)}>
@@ -1020,7 +1033,7 @@ export default function MapScreen() {
               <Text style={styles.detailText}>
                 {t('map.hotspotRisk', { value: selectedHotspot.risk_score })}
               </Text>
-            </View>
+            </IslandCard>
           ) : null}
           <View style={styles.actions}>
             <Button
@@ -1059,15 +1072,20 @@ const createStyles = (theme: Theme) =>
   screenContent: {
     backgroundColor: theme.colors.bg,
   },
-  mapSection: {
-    height: 300,
+  mapSectionOuter: {
     margin: theme.spacing.lg,
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    padding: 1.5,
+  },
+  mapSectionInner: {
+    padding: 0,
+    overflow: 'hidden',
+  },
+  mapSection: {
+    height: 360,
     position: 'relative',
     borderRadius: theme.radius.lg,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
   },
   fullscreenContainer: {
@@ -1082,8 +1100,8 @@ const createStyles = (theme: Theme) =>
     top: 16,
     right: 16,
     backgroundColor: theme.colors.surface,
-    borderRadius: 999,
-    padding: 10,
+    borderRadius: theme.tokens.radius.full,
+    padding: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
     shadowColor: theme.shadow.color,
@@ -1112,12 +1130,14 @@ const createStyles = (theme: Theme) =>
   },
   panel: {
     padding: theme.spacing.lg,
-    paddingTop: theme.spacing.sm,
-    gap: theme.spacing.sm,
+    paddingTop: theme.spacing.md,
+    gap: theme.spacing.md,
   },
   topBar: {
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.lg,
+    paddingBottom: theme.tokens.spacing[1],
+    backgroundColor: theme.tokens.color.background,
   },
   statusRow: {
     marginTop: theme.spacing.xs,
@@ -1130,22 +1150,22 @@ const createStyles = (theme: Theme) =>
     color: theme.colors.textMuted,
   },
   banner: {
-    marginTop: theme.spacing.sm,
-    padding: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
+    padding: theme.spacing.md,
     borderRadius: theme.radius.sm,
-    backgroundColor: '#fff7ed',
+    backgroundColor: theme.tokens.color.surfaceElevated,
     borderWidth: 1,
-    borderColor: '#fed7aa',
+    borderColor: theme.tokens.color.border,
   },
   bannerTitle: {
-    fontSize: 12,
+    fontSize: theme.tokens.typography.fontSize.sm,
     fontWeight: '700',
-    color: '#9a3412',
+    color: theme.tokens.color.textPrimary,
   },
   bannerText: {
     marginTop: 4,
-    fontSize: 11,
-    color: '#9a3412',
+    fontSize: theme.tokens.typography.fontSize.xs,
+    color: theme.tokens.color.textSecondary,
   },
   errorText: {
     marginTop: 6,
@@ -1153,12 +1173,7 @@ const createStyles = (theme: Theme) =>
     color: theme.colors.danger,
   },
   card: {
-    marginTop: theme.spacing.sm,
-    padding: theme.spacing.sm,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    padding: theme.spacing.md,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1168,14 +1183,14 @@ const createStyles = (theme: Theme) =>
     gap: 8,
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: theme.tokens.typography.fontSize.sm,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     color: theme.colors.text,
   },
   sectionHint: {
-    fontSize: 11,
+    fontSize: theme.tokens.typography.fontSize.xs,
     color: theme.colors.textSoft,
     flexShrink: 1,
   },
@@ -1193,7 +1208,7 @@ const createStyles = (theme: Theme) =>
     backgroundColor: theme.colors.danger,
   },
   legendText: {
-    fontSize: 11,
+    fontSize: theme.tokens.typography.fontSize.xs,
     color: theme.colors.textMuted,
   },
   severityLegend: {
@@ -1210,20 +1225,16 @@ const createStyles = (theme: Theme) =>
     borderColor: theme.colors.surface,
   },
   routeCard: {
-    marginTop: theme.spacing.sm,
-    padding: theme.spacing.sm,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    padding: theme.spacing.md,
   },
   routeSearchInput: {
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 12,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: theme.tokens.typography.fontSize.sm,
     backgroundColor: theme.colors.surfaceAlt,
     color: theme.colors.text,
   },
@@ -1236,9 +1247,10 @@ const createStyles = (theme: Theme) =>
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 12,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: theme.tokens.typography.fontSize.sm,
     backgroundColor: theme.colors.surfaceAlt,
     color: theme.colors.text,
   },
@@ -1284,46 +1296,24 @@ const createStyles = (theme: Theme) =>
     color: theme.colors.text,
   },
   routeButton: {
-    backgroundColor: theme.colors.accent,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: theme.radius.sm,
     flexGrow: 1,
-    alignItems: 'center',
-  },
-  routeButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+    minWidth: 120,
   },
   routeButtonSecondary: {
-    borderWidth: 1,
-    borderColor: theme.colors.accent,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: theme.radius.sm,
     flexGrow: 1,
-    alignItems: 'center',
-  },
-  routeButtonSecondaryActive: {
-    backgroundColor: theme.colors.surfaceAlt,
-  },
-  routeButtonSecondaryText: {
-    color: theme.colors.accent,
-    fontSize: 12,
-    fontWeight: '600',
+    minWidth: 120,
   },
   routeWarning: {
     marginTop: 8,
     padding: 8,
     borderRadius: theme.radius.sm,
-    backgroundColor: '#fff1f2',
+    backgroundColor: theme.tokens.color.surfaceElevated,
     borderWidth: 1,
-    borderColor: '#fecdd3',
+    borderColor: theme.tokens.color.error,
   },
   routeWarningText: {
     fontSize: 12,
-    color: '#9f1239',
+    color: theme.tokens.color.error,
   },
   routeOkText: {
     marginTop: 8,
@@ -1371,18 +1361,18 @@ const createStyles = (theme: Theme) =>
     padding: theme.spacing.sm,
     borderRadius: theme.radius.sm,
     borderWidth: 1,
-    borderColor: '#fde68a',
-    backgroundColor: '#fffbeb',
+    borderColor: theme.tokens.color.warning,
+    backgroundColor: theme.tokens.color.surfaceElevated,
   },
   routeAlertTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#b45309',
+    color: theme.tokens.color.warning,
   },
   routeAlertText: {
     marginTop: 4,
     fontSize: 11,
-    color: '#b45309',
+    color: theme.tokens.color.warning,
   },
   actions: {
     marginTop: theme.spacing.sm,
@@ -1407,10 +1397,13 @@ const createStyles = (theme: Theme) =>
   },
   locateButton: {
     backgroundColor: theme.colors.surface,
-    borderRadius: 999,
-    padding: 12,
+    borderRadius: theme.tokens.radius.full,
+    width: 46,
+    height: 46,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: theme.shadow.color,
     shadowOpacity: theme.shadow.opacity,
     shadowRadius: theme.shadow.radius,
@@ -1419,8 +1412,7 @@ const createStyles = (theme: Theme) =>
   },
   locateButtonActive: {
     borderColor: theme.colors.accent,
-    backgroundColor:
-      theme.colors.bg === '#0b1220' ? theme.colors.surfaceAlt : '#fff7ed',
+    backgroundColor: theme.colors.surfaceAlt,
   },
   locateButtonDisabled: {
     opacity: 0.5,
@@ -1428,10 +1420,6 @@ const createStyles = (theme: Theme) =>
   detailCard: {
     marginTop: 10,
     padding: 10,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
   },
   detailRow: {
     flexDirection: 'row',
@@ -1442,15 +1430,15 @@ const createStyles = (theme: Theme) =>
   detailTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: theme.colors.text,
+    color: theme.tokens.color.textInverse,
   },
   detailClose: {
     fontSize: 12,
-    color: theme.colors.accent,
+    color: theme.tokens.color.textInverse,
   },
   detailText: {
     fontSize: 12,
-    color: theme.colors.textMuted,
+    color: theme.tokens.color.textInverse,
     marginBottom: 2,
   },
   callout: {

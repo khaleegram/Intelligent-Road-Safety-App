@@ -13,7 +13,9 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import Button from '../components/Button';
+import GradientChip from '../components/GradientChip';
 import IslandBar from '../components/IslandBar';
+import IslandCard from '../components/IslandCard';
 import { missingFirebaseKeys } from '../config/env';
 import {
   fetchAccidents,
@@ -64,6 +66,7 @@ export default function AdminScreen({
   const [activeTab, setActiveTab] = useState<'hotspots' | 'reports' | 'users'>(
     initialTab === 'overview' ? 'hotspots' : initialTab
   );
+  const [compactBar, setCompactBar] = useState(false);
   const { user: authUser, isAdmin, loading: authLoading } = useAdminAccess();
 
   const load = async () => {
@@ -189,23 +192,34 @@ export default function AdminScreen({
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
+        stickyHeaderIndices={[0]}
+        scrollEventThrottle={16}
+        onScroll={(event) => {
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          if (shouldCompact !== compactBar) {
+            setCompactBar(shouldCompact);
+          }
+        }}
         contentContainerStyle={[
           styles.content,
           { paddingBottom: theme.spacing.lg + insets.bottom },
         ]}
       >
-        <IslandBar
-          eyebrow={t('admin.eyebrow')}
-          title={t('admin.title')}
-          subtitle={t('admin.subtitle')}
-          mode="admin"
-          isAdmin={isAdmin}
-          onToggle={(next) => {
-            if (next === 'public') {
-              navigation.navigate('Public', { screen: 'Map' });
-            }
-          }}
-        />
+        <View style={styles.headerWrap}>
+          <IslandBar
+            eyebrow={t('admin.eyebrow')}
+            title={t('admin.title')}
+            subtitle={t('admin.subtitle')}
+            mode="admin"
+            compact={compactBar}
+            isAdmin={isAdmin}
+            onToggle={(next) => {
+              if (next === 'public') {
+                navigation.navigate('Public', { screen: 'Map' });
+              }
+            }}
+          />
+        </View>
 
         {missingFirebaseKeys.length > 0 ? (
           <View style={styles.banner}>
@@ -240,7 +254,7 @@ export default function AdminScreen({
           </View>
         ) : null}
 
-        <View style={styles.card}>
+        <IslandCard style={styles.card}>
           <Text style={styles.sectionTitle}>{t('admin.overview')}</Text>
           <View style={styles.statRow}>
             <View style={styles.statBox}>
@@ -284,110 +298,60 @@ export default function AdminScreen({
               onPress={() => navigation.navigate('ResearchData')}
             />
           ) : null}
-        </View>
+        </IslandCard>
 
         {showTabs ? (
           <View style={styles.tabBar}>
-            <Pressable
-              style={[
-                styles.tabItem,
-                activeTab === 'hotspots' && styles.tabItemActive,
-              ]}
+            <GradientChip
+              style={styles.tabItem}
+              active={activeTab === 'hotspots'}
+              label={t('nav.hotspots')}
               onPress={() => setActiveTab('hotspots')}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === 'hotspots' && styles.tabTextActive,
-                ]}
-              >
-                {t('nav.hotspots')}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.tabItem,
-                activeTab === 'reports' && styles.tabItemActive,
-              ]}
+            />
+            <GradientChip
+              style={styles.tabItem}
+              active={activeTab === 'reports'}
+              label={t('nav.reports')}
               onPress={() => setActiveTab('reports')}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === 'reports' && styles.tabTextActive,
-                ]}
-              >
-                {t('nav.reports')}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.tabItem,
-                activeTab === 'users' && styles.tabItemActive,
-              ]}
+            />
+            <GradientChip
+              style={styles.tabItem}
+              active={activeTab === 'users'}
+              label={t('nav.users')}
               onPress={() => setActiveTab('users')}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === 'users' && styles.tabTextActive,
-                ]}
-              >
-                {t('nav.users')}
-              </Text>
-            </Pressable>
+            />
           </View>
         ) : null}
 
         {activeTab === 'reports' ? (
-          <View style={styles.card}>
+          <IslandCard style={styles.card}>
             <Text style={styles.sectionTitle}>{t('admin.recentReports')}</Text>
             <View style={styles.filterRow}>
               {(['All', 'Fatal', 'Critical', 'Minor', 'Damage Only'] as const).map((value) => (
-                <Pressable
+                <GradientChip
                   key={value}
-                  style={[
-                    styles.chip,
-                    severityFilter === value && styles.chipActive,
-                  ]}
+                  style={styles.chip}
+                  active={severityFilter === value}
+                  label={value}
                   onPress={() => setSeverityFilter(value)}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      severityFilter === value && styles.chipTextActive,
-                    ]}
-                  >
-                    {value}
-                  </Text>
-                </Pressable>
+                />
               ))}
             </View>
             <View style={styles.filterRow}>
               {(['All', 1, 7, 30] as const).map((value) => (
-                <Pressable
+                <GradientChip
                   key={String(value)}
-                  style={[
-                    styles.chip,
-                    daysFilter === value && styles.chipActive,
-                  ]}
+                  style={styles.chip}
+                  active={daysFilter === value}
+                  label={value === 'All' ? 'All days' : value === 1 ? '24h' : `${value}d`}
                   onPress={() => setDaysFilter(value)}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      daysFilter === value && styles.chipTextActive,
-                    ]}
-                  >
-                    {value === 'All' ? 'All days' : value === 1 ? '24h' : `${value}d`}
-                  </Text>
-                </Pressable>
+                />
               ))}
             </View>
             <TextInput
               style={styles.filterInput}
               placeholder="Filter by road/weather text"
-              placeholderTextColor={theme.colors.text}
+              placeholderTextColor={theme.tokens.color.textSecondary}
               value={regionFilter}
               onChangeText={setRegionFilter}
             />
@@ -422,11 +386,11 @@ export default function AdminScreen({
                 </Pressable>
               ))
             )}
-          </View>
+          </IslandCard>
         ) : null}
 
         {activeTab === 'hotspots' ? (
-          <View style={styles.card}>
+          <IslandCard style={styles.card}>
             <Text style={styles.sectionTitle}>{t('admin.recentHotspots')}</Text>
             {!isAdmin ? (
               <Text style={styles.emptyText}>{t('common.adminRequired')}</Text>
@@ -452,11 +416,11 @@ export default function AdminScreen({
                 </Pressable>
               ))
             )}
-          </View>
+          </IslandCard>
         ) : null}
 
         {activeTab === 'users' ? (
-          <View style={styles.card}>
+          <IslandCard style={styles.card}>
             <Text style={styles.sectionTitle}>{t('admin.users')}</Text>
             {!isAdmin ? (
               <Text style={styles.emptyText}>{t('common.adminRequired')}</Text>
@@ -485,7 +449,7 @@ export default function AdminScreen({
                 </View>
               ))
             )}
-          </View>
+          </IslandCard>
         ) : null}
       </ScrollView>
     </SafeAreaView>
@@ -500,57 +464,41 @@ const createStyles = (theme: Theme) =>
     },
     content: {
       padding: theme.spacing.lg,
-      gap: theme.spacing.sm,
+      gap: theme.spacing.md,
+    },
+    headerWrap: {
+      marginBottom: theme.tokens.spacing[2],
+      backgroundColor: theme.tokens.color.background,
+      paddingBottom: theme.tokens.spacing[2],
     },
     banner: {
-      marginTop: theme.spacing.sm,
-      padding: theme.spacing.sm,
+      marginTop: theme.spacing.xs,
+      padding: theme.spacing.md,
       borderRadius: theme.radius.sm,
-      backgroundColor: '#fff7ed',
+      backgroundColor: theme.tokens.color.surfaceElevated,
       borderWidth: 1,
-      borderColor: '#fed7aa',
+      borderColor: theme.tokens.color.border,
     },
     bannerTitle: {
-      fontSize: 12,
+      fontSize: theme.tokens.typography.fontSize.sm,
       fontWeight: '700',
-      color: '#9a3412',
+      color: theme.tokens.color.textPrimary,
     },
     bannerText: {
       marginTop: 4,
-      fontSize: 11,
-      color: '#9a3412',
+      fontSize: theme.tokens.typography.fontSize.xs,
+      color: theme.tokens.color.textSecondary,
     },
     card: {
-      padding: theme.spacing.sm,
-      borderRadius: theme.radius.md,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      gap: theme.spacing.sm,
+      gap: theme.spacing.md,
     },
     tabBar: {
       flexDirection: 'row',
-      borderRadius: theme.radius.md,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-      overflow: 'hidden',
+      gap: theme.tokens.spacing[2],
     },
     tabItem: {
       flex: 1,
-      paddingVertical: 10,
-      alignItems: 'center',
-    },
-    tabItemActive: {
-      backgroundColor: theme.colors.accent,
-    },
-    tabText: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: theme.colors.textMuted,
-    },
-    tabTextActive: {
-      color: theme.colors.bg,
+      minHeight: 40,
     },
     sectionTitle: {
       fontSize: 12,
@@ -565,9 +513,9 @@ const createStyles = (theme: Theme) =>
     },
     statBox: {
       flex: 1,
-      padding: theme.spacing.sm,
+      padding: theme.spacing.md,
       borderRadius: theme.radius.sm,
-      backgroundColor: theme.colors.surfaceAlt,
+      backgroundColor: theme.tokens.color.surfaceElevated,
       borderWidth: 1,
       borderColor: theme.colors.border,
       alignItems: 'center',
@@ -591,39 +539,28 @@ const createStyles = (theme: Theme) =>
       gap: 6,
     },
     chip: {
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: 999,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      backgroundColor: theme.colors.surfaceAlt,
-    },
-    chipActive: {
-      borderColor: theme.colors.accent,
-      backgroundColor: theme.colors.accent,
-    },
-    chipText: {
-      fontSize: 11,
-      color: theme.colors.textMuted,
-    },
-    chipTextActive: {
-      color: theme.colors.bg,
+      flexGrow: 0,
     },
     filterInput: {
       borderWidth: 1,
       borderColor: theme.colors.border,
       borderRadius: theme.radius.sm,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-      fontSize: 12,
+      minHeight: 44,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: theme.tokens.typography.fontSize.sm,
       color: theme.colors.text,
-      backgroundColor: theme.colors.surfaceAlt,
+      backgroundColor: theme.tokens.color.surfaceElevated,
     },
     listRow: {
-      paddingVertical: 8,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
-      gap: 4,
+      marginTop: theme.tokens.spacing[2],
+      paddingVertical: 10,
+      paddingHorizontal: 10,
+      borderWidth: 1,
+      borderColor: theme.tokens.color.border,
+      borderRadius: theme.tokens.radius.md,
+      backgroundColor: theme.tokens.color.surfaceElevated,
+      gap: 5,
     },
     listTitle: {
       fontSize: 12,
@@ -648,19 +585,19 @@ const createStyles = (theme: Theme) =>
       marginTop: theme.spacing.xs,
       padding: theme.spacing.sm,
       borderWidth: 1,
-      borderColor: '#f59e0b',
+      borderColor: theme.tokens.color.warning,
       borderRadius: theme.radius.sm,
-      backgroundColor: '#fffbeb',
+      backgroundColor: theme.tokens.color.surfaceElevated,
       gap: 4,
     },
     spikeTitle: {
       fontSize: 12,
       fontWeight: '700',
-      color: '#b45309',
+      color: theme.tokens.color.warning,
     },
     spikeText: {
       fontSize: 11,
-      color: '#b45309',
+      color: theme.tokens.color.warning,
     },
     spikeActions: {
       marginTop: 6,

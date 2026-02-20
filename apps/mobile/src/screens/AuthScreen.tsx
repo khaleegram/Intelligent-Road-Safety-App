@@ -10,8 +10,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import Button from '../components/Button';
+import IslandCard from '../components/IslandCard';
 import { auth } from '../services/firebase';
 import { upsertUserProfile } from '../services/userProfile';
 import { useI18n } from '../i18n';
@@ -66,17 +68,23 @@ export default function AuthScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <LinearGradient
+        colors={theme.gradients.hero}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.heroBackdrop}
+      />
       <KeyboardAvoidingView
         style={styles.wrapper}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.card}>
+        <IslandCard variant="hero" style={styles.card} contentStyle={styles.cardInner}>
           <Text style={styles.title}>{t('auth.title')}</Text>
           <Text style={styles.subtitle}>{t('auth.subtitle')}</Text>
           <TextInput
             style={styles.input}
             placeholder={t('common.email')}
-            placeholderTextColor={theme.colors.text}
+            placeholderTextColor={theme.tokens.color.textInverse}
             autoCapitalize="none"
             keyboardType="email-address"
             value={email}
@@ -85,7 +93,7 @@ export default function AuthScreen() {
           <TextInput
             style={styles.input}
             placeholder={t('common.password')}
-            placeholderTextColor={theme.colors.text}
+            placeholderTextColor={theme.tokens.color.textInverse}
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -103,7 +111,7 @@ export default function AuthScreen() {
               disabled={submitting}
             />
           </View>
-        </View>
+        </IslandCard>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -115,37 +123,40 @@ const createStyles = (theme: Theme) =>
       flex: 1,
       backgroundColor: theme.colors.bg,
     },
+    heroBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+      opacity: 0.18,
+    },
     wrapper: {
       flex: 1,
       justifyContent: 'center',
       padding: theme.spacing.lg,
     },
     card: {
+      padding: 1.5,
+    },
+    cardInner: {
       padding: theme.spacing.lg,
-      borderRadius: theme.radius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
       gap: theme.spacing.sm,
     },
     title: {
       fontSize: 20,
       fontWeight: '700',
-      color: theme.colors.text,
+      color: theme.tokens.color.textInverse,
     },
     subtitle: {
       fontSize: 13,
-      color: theme.colors.textMuted,
+      color: theme.tokens.color.textInverse,
       marginBottom: theme.spacing.xs,
     },
     input: {
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: theme.tokens.color.surface,
       borderRadius: theme.radius.sm,
       paddingHorizontal: 12,
       paddingVertical: 10,
-      backgroundColor: theme.colors.surfaceAlt,
-      color: theme.colors.text,
+      backgroundColor: theme.tokens.color.primaryHover,
+      color: theme.tokens.color.textInverse,
     },
     actions: {
       marginTop: theme.spacing.sm,
