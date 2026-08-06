@@ -1,8 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useI18n } from '../i18n';
+import type { RootStackParamList } from '../navigation/RootNavigator';
 import { type Theme, useTheme } from '../theme';
 
 type IslandBarProps = {
@@ -32,6 +35,7 @@ export default function IslandBar({
 }: IslandBarProps) {
   const { theme } = useTheme();
   const { t } = useI18n();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const styles = createStyles(theme);
   const collapseValue = useRef(new Animated.Value(compact ? 1 : 0)).current;
 
@@ -99,19 +103,21 @@ export default function IslandBar({
         <IconAction
           icon="search"
           label="Search"
-          onPress={onSearchPress}
+          onPress={onSearchPress ?? (() => navigation.navigate('Search', { mode }))}
           compact={compact}
         />
         <IconAction
           icon="notifications-outline"
           label="Notifications"
-          onPress={onNotificationsPress}
+          onPress={
+            onNotificationsPress ?? (() => navigation.navigate('Notifications', { mode }))
+          }
           compact={compact}
         />
         <IconAction
           icon="person-circle-outline"
           label="Profile"
-          onPress={onProfilePress}
+          onPress={onProfilePress ?? (() => navigation.navigate('Profile', { mode }))}
           compact={compact}
         />
         {canSwitchToAdmin ? (

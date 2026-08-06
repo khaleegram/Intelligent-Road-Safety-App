@@ -29,6 +29,37 @@ Optional flags:
 - `--verified`
 - `--time-bucket last_30d` or `last_90d`
 
+## Import real research dataset (.xlsx)
+
+Use this to import `RoadSafety_Dataset.xlsx` into:
+- `accidents` (core app records)
+- `accident_features` (rich ML/research fields)
+- `dataset_import_runs` (audit metadata)
+
+Dry run first:
+
+```bash
+node import-dataset.mjs --input "C:\Users\User\Downloads\RoadSafety_Dataset.xlsx" --dry-run
+```
+
+Write to Firestore and refresh hotspots:
+
+```bash
+node import-dataset.mjs --input "C:\Users\User\Downloads\RoadSafety_Dataset.xlsx"
+```
+
+Common options:
+- `--sheet Sheet1`
+- `--source road_safety_research_dataset_v1`
+- `--reporter-uid dataset_import_v1`
+- `--verified-by dataset_import_v1`
+- `--batch-size 350`
+- `--threshold 3`
+- `--grid 0.01`
+- `--time-bucket all | last_30d | last_90d`
+- `--hotspots-verified`
+- `--skip-hotspots`
+
 ## Train baseline model (validation only)
 
 ```bash
@@ -44,6 +75,18 @@ Treat all outputs as advisory until you add:
 - versioned model registry with promotion/rollback
 - evaluation thresholds (precision/recall targets) on held-out data
 - post-deploy monitoring and drift checks
+
+Also avoid leakage when selecting model inputs:
+- `route_risk_score`
+- `crash_hotspot_proximity_km`
+- `historical_crash_density`
+- `blackspot_classification`
+
+## Import tests
+
+```bash
+npm run test:import
+```
 
 ## Credentials
 Uses the same credential resolution as the pipeline:

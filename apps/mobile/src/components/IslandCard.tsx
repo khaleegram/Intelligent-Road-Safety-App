@@ -76,6 +76,6 @@ const createStyles = (theme: Theme) =>
       overflow: 'hidden',
     },
     content: {
-      padding: theme.tokens.spacing[3],
+      padding: theme.tokens.spacing[4],
     },
   });

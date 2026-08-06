@@ -1035,17 +1035,6 @@ export default function MapScreen() {
               </Text>
             </IslandCard>
           ) : null}
-          <View style={styles.actions}>
-            <Button
-              label={t('common.reportIncident')}
-              onPress={() => navigation.navigate('Public', { screen: 'Report' })}
-            />
-            <Button
-              label={t('common.settings')}
-              variant="secondary"
-              onPress={() => navigation.navigate('Public', { screen: 'Settings' })}
-            />
-          </View>
           {routeSearchFocused ? (
             <View style={{ height: mapSectionHeight }} />
           ) : null}
@@ -1237,10 +1226,12 @@ const createStyles = (theme: Theme) =>
     fontSize: theme.tokens.typography.fontSize.sm,
     backgroundColor: theme.colors.surfaceAlt,
     color: theme.colors.text,
+    marginBottom: theme.tokens.spacing[2],
   },
   routeRow: {
     flexDirection: 'row',
-    gap: theme.spacing.sm,
+    gap: theme.tokens.spacing[3],
+    marginBottom: theme.tokens.spacing[2],
   },
   routeInput: {
     flex: 1,
@@ -1255,9 +1246,9 @@ const createStyles = (theme: Theme) =>
     color: theme.colors.text,
   },
   routeActions: {
-    marginTop: theme.spacing.sm,
+    marginTop: theme.tokens.spacing[2],
     flexDirection: 'row',
-    gap: theme.spacing.sm,
+    gap: theme.tokens.spacing[2],
     flexWrap: 'wrap',
   },
   suggestionList: {
@@ -1373,11 +1364,6 @@ const createStyles = (theme: Theme) =>
     marginTop: 4,
     fontSize: 11,
     color: theme.tokens.color.warning,
-  },
-  actions: {
-    marginTop: theme.spacing.sm,
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
   },
   accidentMarker: {
     width: 8,

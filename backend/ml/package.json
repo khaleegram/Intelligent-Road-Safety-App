@@ -3,9 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "export:accidents": "node export-accidents.mjs"
+    "export:accidents": "node export-accidents.mjs",
+    "import:dataset": "node import-dataset.mjs",
+    "test:import": "node tests/import-dataset.test.mjs"
   },
   "dependencies": {
-    "firebase-admin": "^13.0.2"
+    "firebase-admin": "^13.0.2",
+    "xlsx": "^0.18.5"
   }
 }

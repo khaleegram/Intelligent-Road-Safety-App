@@ -1,0 +1,144 @@
+TURN REQUIREMENTS INTO A BUILD PLAN
+This step ends when:
+ You know exactly what you are building
+ You know exactly what you are not building
+ You could disappear for 2 weeks and still come back knowing what to code ne
+xt
+If any of that is missing, you’re not done.
+ 2.1 Define the MVP in ONE sentence (anchor)
+> MVP Goal:
+> A mobile app that lets users view accident hotspots on a map, submit accident data, and receive basic warnings when a selected route passes near known high-risk locations.
+If a feature does not support this sentence, it does not belong in MVP.
+ 2.2 MVP Feature List (locked)
+These are non-negotiable MVP features. Nothing more, nothing less.
+ A. Core User Features
+1. View accident hotspots on a map
+2. Submit accident reports
+3. Select a route and receive hotspot warnings
+4. Use the app with limited functionality offline
+ B. Technical Features
+1. Cloud data storage (Firebase)
+2. Map visualization (Mapbox)
+3. Rule-based hotspot logic (temporary)
+4. Local caching + sync queue
+5. Simple settings screen
+ 2.3 Explicitly OUT of scope for MVP (write this down)
+This protects you.
+❌ Real-time accident detection
+❌ Emergency dispatch
+❌ Advanced offline navigation
+❌ Automatic ML retraining
+❌ Multiple user roles
+❌ Admin dashboard
+❌ Full multilingual support
+❌ Advanced analytics
+These go to Phase 2+, not “maybe later”.
+ 2.4 Break MVP into Modules (this is the real work)
+You are not building “an app”.
+You are building modules.
+ Module 1: App Foundation
+ Expo project setup
+ Navigation structure
+ Global state
+ Environment config
+Deliverable: App launches, navigates, does nothing useful yet.
+ Module 2: Data Layer
+ Firebase project
+ Firestore collections
+ Write / read rules
+ Network error handling
+Deliverable: Data can be saved and fetched reliably.
+ Module 3: Accident Reporting
+ Accident form UI
+ Location picker (map tap)
+ Validation
+ Submit → Firestore
+Deliverable: Accident appears in database with correct fields.
+ Module 4: Hotspot Logic (Rule-Based)
+This replaces ML temporarily.
+Logic example:
+```
+Group accidents by grid cell
+Count accidents per cell
+If count > threshold → hotspot
+```
+Deliverable: You can compute hotspots without ML.
+ Module 5: Map Visualization
+ Display user location
+ Render accident markers
+ Render hotspots (color-coded)
+ Tap hotspot → details
+Deliverable: Client can visually understand risk areas.
+ Module 6: Route & Warning System
+ Destination input
+ Route rendering
+ Distance check between route and hotspots
+ Warning UI (banner / modal)
+Deliverable: User sees warnings before entering risky zones.
+ Module 7: Offline Support
+ Cache hotspot data locally
+ Queue accident submissions
+ Sync on reconnect
+Deliverable: App does not break without internet.
+ Module 8: Basic Settings
+ Language toggle (English only for now)
+ Cache refresh
+ About screen
+Deliverable: App feels complete, not hacked together.
+ 2.5 Define the Data Contracts (critical)
+If you don’t define this now, ML will punish you later.
+ Accident Record
+```
+id
+latitude
+longitude
+timestamp
+severity
+road_type
+weather
+vehicle_count
+casualty_count
+created_at
+```
+ Hotspot Record (computed)
+```
+area_id
+center_lat
+center_lng
+risk_score
+severity_level
+accident_count
+last_updated
+```
+This structure must not change without good reason.
+ 2.6 Decide what is “done” for Step 2
+Step 2 is DONE only when:
+ MVP feature list is written and frozen
+ Out-of-scope list is explicit
+ Modules are clearly defined
+ Data schema is fixed
+ You can explain the build plan in under 3 minutes
+If the client suddenly says:
+“Can we also add real-time alerts from police?”
+You answer:
+“That’s Phase 2. MVP already defined.”
+ 2.7 What you do NEXT (Step 3 preview)
+Now that Step 2 is complete, next step is NOT ML.
+Step 3 is:
+ Project setup
+ Firebase schema creation
+ Map rendering
+ Accident submission flow
+That’s when code starts.
+ Final straight truth
+If you skip or rush Step 2:
+ ML becomes chaos
+ Scope explodes
+ Client expectations drift
+ You lose control
+You just finished the most important step of the project, even though it doesn’t look like coding.
+If you want, next I can:
+ Turn this into a task board (daily breakdown)
+ Write a Phase 1 delivery email to the client
+ Or start Step 3 line-by-line (actual build order)
+This is how real projects survive.

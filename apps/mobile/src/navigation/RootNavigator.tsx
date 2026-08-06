@@ -11,7 +11,10 @@ import type { PublicTabParamList } from './PublicTabs';
 import AuthScreen from '../screens/AuthScreen';
 import AccidentDetailScreen from '../screens/AccidentDetailScreen';
 import HotspotDetailScreen from '../screens/HotspotDetailScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import ResearchDataScreen from '../screens/ResearchDataScreen';
+import SearchScreen from '../screens/SearchScreen';
 import { auth } from '../services/firebase';
 import { useTheme } from '../theme';
 
@@ -22,6 +25,9 @@ export type RootStackParamList = {
   AccidentDetail: { accidentId: string };
   HotspotDetail: { hotspotId: string };
   ResearchData: undefined;
+  Search: { mode?: 'public' | 'admin' } | undefined;
+  Notifications: { mode?: 'public' | 'admin' } | undefined;
+  Profile: { mode?: 'public' | 'admin' } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -67,6 +73,9 @@ export default function RootNavigator() {
           <Stack.Screen name="AccidentDetail" component={AccidentDetailScreen} />
           <Stack.Screen name="HotspotDetail" component={HotspotDetailScreen} />
           <Stack.Screen name="ResearchData" component={ResearchDataScreen} />
+          <Stack.Screen name="Search" component={SearchScreen} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
         </Stack.Navigator>
       ) : (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
