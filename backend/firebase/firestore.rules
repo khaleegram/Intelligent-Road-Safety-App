@@ -40,7 +40,8 @@ service cloud.firestore {
           'vehicle_count',
           'casualty_count',
           'created_at',
-          'reporter_uid'
+          'reporter_uid',
+          'weather_snapshot'
         ]) &&
         data.request_id is string &&
         data.request_id == accidentId &&
@@ -76,9 +77,28 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /risk_predictions/{cellId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
     match /admin_alerts/{alertId} {
       allow read: if isAdmin();
       allow write: if false;
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if isSignedIn() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.message is string;
+      allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    match /behaviour_trips/{tripId} {
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow update, delete: if false;
     }
 
     match /users/{userId} {
@@ -91,6 +111,10 @@ service cloud.firestore {
         (!('is_admin' in request.resource.data) ||
           request.resource.data.is_admin == resource.data.is_admin);
       allow delete: if false;
+
+      match /emergency_contacts/{contactId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
     }
 
     match /{document=**} {

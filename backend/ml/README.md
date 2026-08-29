@@ -82,6 +82,18 @@ Also avoid leakage when selecting model inputs:
 - `historical_crash_density`
 - `blackspot_classification`
 
+## Publish advisory risk predictions (mobile Map)
+
+After hotspot computation (or baseline training), publish cells to Firestore `risk_predictions` for the SafeDrive NG Map advisory banner:
+
+```bash
+node publish-risk-predictions.mjs
+```
+
+Optional: `ML_MODEL_VERSION=baseline-gb-v1`
+
+The mobile app reads these as advisory only (`advisory_only: true`). Do not use them for automated enforcement.
+
 ## Import tests
 
 ```bash

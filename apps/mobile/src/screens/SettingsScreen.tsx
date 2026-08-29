@@ -13,7 +13,9 @@ import Button from '../components/Button';
 import IslandBar from '../components/IslandBar';
 import IslandCard from '../components/IslandCard';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import { auth } from '../services/firebase';
+import { getAlertPreferences, setAlertPreferences } from '../services/alertPreferences';
 import { offlineQueue } from '../services/offlineQueue';
 import { storage } from '../services/storage';
 import { isUserAdmin, upsertUserProfile } from '../services/userProfile';
@@ -22,8 +24,9 @@ import { type Theme, useTheme } from '../theme';
 
 export default function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { theme, mode, toggleTheme } = useTheme();
+  const { theme, mode, preference, setPreference } = useTheme();
   const { t, language, setLanguage } = useI18n();
+  const { contentPadding } = useBreakpoint();
   const insets = useSafeAreaInsets();
   const styles = createStyles(theme);
   const [queuedCount, setQueuedCount] = useState(0);
@@ -31,9 +34,15 @@ export default function SettingsScreen() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [compactBar, setCompactBar] = useState(false);
+  const [alertsEnabled, setAlertsEnabled] = useState(true);
+  const [alertRadius, setAlertRadius] = useState(200);
 
   useEffect(() => {
     offlineQueue.getAll().then((items) => setQueuedCount(items.length));
+    getAlertPreferences().then((prefs) => {
+      setAlertsEnabled(prefs.enabled);
+      setAlertRadius(prefs.radiusMeters);
+    });
   }, []);
 
   useEffect(() => {
@@ -94,7 +103,7 @@ export default function SettingsScreen() {
         }}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: theme.spacing.lg + insets.bottom },
+          { paddingHorizontal: contentPadding, paddingBottom: theme.spacing.lg + insets.bottom },
         ]}
       >
         <View style={styles.headerWrap}>
@@ -117,17 +126,28 @@ export default function SettingsScreen() {
           <IslandCard style={styles.card}>
             <Text style={styles.label}>{t('settings.theme')}</Text>
             <Text style={styles.value}>
-              {mode === 'light' ? t('settings.light') : t('settings.dark')}
+              {preference === 'system'
+                ? t('settings.system')
+                : mode === 'light'
+                  ? t('settings.light')
+                  : t('settings.dark')}
             </Text>
-            <Button
-              label={
-                mode === 'light'
-                  ? t('settings.switchToDark')
-                  : t('settings.switchToLight')
-              }
-              variant="secondary"
-              onPress={toggleTheme}
-            />
+            <View style={styles.languageRow}>
+              {(['system', 'light', 'dark'] as const).map((option) => (
+                <Button
+                  key={option}
+                  label={
+                    option === 'system'
+                      ? t('settings.themeSystem')
+                      : option === 'light'
+                        ? t('settings.themeLight')
+                        : t('settings.themeDark')
+                  }
+                  variant={preference === option ? 'primary' : 'secondary'}
+                  onPress={() => setPreference(option)}
+                />
+              ))}
+            </View>
           </IslandCard>
           <IslandCard style={styles.card}>
             <Text style={styles.label}>{t('settings.language')}</Text>
@@ -139,6 +159,39 @@ export default function SettingsScreen() {
                   label={t(`language.${code}`)}
                   variant={language === code ? 'primary' : 'secondary'}
                   onPress={() => setLanguage(code)}
+                />
+              ))}
+            </View>
+          </IslandCard>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('settings.alerts')}</Text>
+          <IslandCard style={styles.card}>
+            <Text style={styles.label}>{t('settings.alertsEnabled')}</Text>
+            <Text style={styles.value}>
+              {alertsEnabled ? t('common.enabled') : t('common.disabled')}
+            </Text>
+            <Button
+              label={alertsEnabled ? t('common.disabled') : t('common.enabled')}
+              variant="secondary"
+              onPress={async () => {
+                const next = !alertsEnabled;
+                setAlertsEnabled(next);
+                await setAlertPreferences({ enabled: next, radiusMeters: alertRadius });
+              }}
+            />
+            <Text style={styles.label}>{t('settings.alertRadius')}</Text>
+            <View style={styles.languageRow}>
+              {[150, 200, 400].map((meters) => (
+                <Button
+                  key={meters}
+                  label={`${meters}m`}
+                  variant={alertRadius === meters ? 'primary' : 'secondary'}
+                  onPress={async () => {
+                    setAlertRadius(meters);
+                    await setAlertPreferences({ enabled: alertsEnabled, radiusMeters: meters });
+                  }}
                 />
               ))}
             </View>
@@ -165,6 +218,37 @@ export default function SettingsScreen() {
             label={t('settings.syncNow')}
             variant="secondary"
             onPress={syncNow}
+          />
+        </IslandCard>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('settings.modules')}</Text>
+        <IslandCard style={styles.card}>
+          <Button
+            label={t('settings.openSos')}
+            variant="secondary"
+            onPress={() => navigation.navigate('Sos')}
+          />
+          <Button
+            label={t('settings.openEducation')}
+            variant="secondary"
+            onPress={() => navigation.navigate('Education')}
+          />
+          <Button
+            label={t('settings.openMedication')}
+            variant="secondary"
+            onPress={() => navigation.navigate('Medication')}
+          />
+          <Button
+            label={t('settings.openFeedback')}
+            variant="secondary"
+            onPress={() => navigation.navigate('Feedback')}
+          />
+          <Button
+            label={t('settings.openBehaviour')}
+            variant="secondary"
+            onPress={() => navigation.navigate('Behaviour')}
           />
         </IslandCard>
       </View>

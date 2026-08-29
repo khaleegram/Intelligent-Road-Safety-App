@@ -1,0 +1,110 @@
+[
+  {
+    "id": "paracetamol",
+    "names": ["paracetamol", "panadol", "tylenol", "acetaminophen"],
+    "level": "safe",
+    "advice_en": "Paracetamol at normal doses is generally safe for driving when you feel well.",
+    "advice_ha": "Paracetamol a ƙima na yau da kullum yana da aminci don tafiya idan kana da lafiya.",
+    "advice_yo": "Paracetamol ni iye ti o tọ yẹ fun wakọ nigbati o ba wa daradara.",
+    "advice_ig": "Paracetamol na oke nke ọma dị mma maka ịkwọ ụgbọ ala mgbe ị nọ mma."
+  },
+  {
+    "id": "ibuprofen",
+    "names": ["ibuprofen", "brufen", "nurofen"],
+    "level": "safe",
+    "advice_en": "Ibuprofen rarely affects alertness at standard doses. Stop driving if you feel dizzy.",
+    "advice_ha": "Ibuprofen ba ya shafar hankali sosai a ƙima na yau da kullum. Ka daina tafiya idan ka ji jijjiga.",
+    "advice_yo": "Ibuprofen ko pọ si iṣẹlẹ ni iye ti o tọ. Duro lati wakọ ti o ba ni aifọwọyi.",
+    "advice_ig": "Ibuprofen adịghị emetụta ịtụnanya na oke nke ọma. Kwụsị ịkwọ ụgbọ ala ma ị na-atụ ụzọ."
+  },
+  {
+    "id": "metformin",
+    "names": ["metformin", "glucophage"],
+    "level": "safe",
+    "advice_en": "Metformin alone usually does not impair driving. Monitor for low blood sugar symptoms.",
+    "advice_ha": "Metformin kadai ba ya shafar tafiya. Ka lura da alamun ƙaramin sukari a jini.",
+    "advice_yo": "Metformin nikan ko pọ si wakọ. Ṣe akiyesi awọn ami aito sugar ninu ẹjẹ.",
+    "advice_ig": "Metformin naanị adịghị emebi ịkwọ ụgbọ ala. Lelee akara sugar dị ala."
+  },
+  {
+    "id": "antihistamine",
+    "names": ["chlorpheniramine", "pyriramine", "piriton", "diphenhydramine", "antihistamine"],
+    "level": "caution",
+    "advice_en": "Many antihistamines cause drowsiness. Avoid driving until you know how you react.",
+    "advice_ha": "Antihistamines da yawa suna haifar da barci. Ka guji tafiya har ka san yadda jikinka ke amsawa.",
+    "advice_yo": "Antihistamines pupọ n fa oorun. Yago fun wakọ titi ti o ba mọ bawo ni ara rẹ n dahun.",
+    "advice_ig": "Antihistamines dị iche iche na-akpata ụra. Zere ịkwọ ụgbọ ala ruo mgbe ị ma otú gị si aghọta."
+  },
+  {
+    "id": "codeine",
+    "names": ["codeine", "codiphan", "cough syrup with codeine"],
+    "level": "avoid",
+    "advice_en": "Codeine and opioid cough syrups slow reactions and cause drowsiness. Do not drive.",
+    "advice_ha": "Codeine da shiruwan tari na rage sauri kuma suna haifar da barci. Kada ka tafi tafiya.",
+    "advice_yo": "Codeine ati cough syrup opioid n dinku esi ati fa oorun. Maṣe wakọ.",
+    "advice_ig": "Codeine na cough syrup opioid na-eme ka ị laghachi na-akpata ụra. Ekwela ịkwọ ụgbọ ala."
+  },
+  {
+    "id": "tramadol",
+    "names": ["tramadol", "tramal", "ultram"],
+    "level": "avoid",
+    "advice_en": "Tramadol is a strong painkiller that impairs concentration. Avoid driving completely.",
+    "advice_ha": "Tramadol magani ne mai ƙarfi wanda ke shafar hankali. Ka guji tafiya gaba ɗaya.",
+    "advice_yo": "Tramadol jẹ agun painkiller ti o ba concentration. Yago fun wakọ patapata.",
+    "advice_ig": "Tramadol bụ painkiller siri ike na-emebi iche nche. Zere ịkwọ ụgbọ ala kpamkpam."
+  },
+  {
+    "id": "diazepam",
+    "names": ["diazepam", "valium", "sleeping pill", "benzodiazepine"],
+    "level": "avoid",
+    "advice_en": "Diazepam and similar sedatives strongly affect alertness. Never drive after taking them.",
+    "advice_ha": "Diazepam da magungunan barci masu kama da shi suna shafar hankali sosai. Kada ka tafi tafiya bayan shan su.",
+    "advice_yo": "Diazepam ati sedatives bẹẹ lọ n fa aifọwọyi. Maṣe wakọ lẹhin gbigba wọn.",
+    "advice_ig": "Diazepam na sedatives yiri ya na-emebi ịtụnanya. Ekwela ịkwọ ụgbọ ala mgbe ị gwụsịrị ya."
+  },
+  {
+    "id": "alcohol",
+    "names": ["alcohol", "beer", "wine", "spirits", "ogogoro", "palm wine"],
+    "level": "avoid",
+    "advice_en": "Any alcohol before driving is unsafe and illegal under FRSC rules. Use a designated driver.",
+    "advice_ha": "Duk wani giya kafin tafiya ba ta da aminci kuma haram ce bisa dokokin FRSC. Yi amfani da direba da aka zaɓa.",
+    "advice_yo": "Eyin oti kankan ṣaaju wakọ ko lewu ati ko ofin FRSC. Lo oluwakọ ti a yan.",
+    "advice_ig": "Alcohol ọ bụla tupu ịkwọ ụgbọ ala adịghị mma ma bụ iwu FRSC. Jiri onye ọkwọ ụgbọ ala ahọpụtara."
+  },
+  {
+    "id": "amoxicillin",
+    "names": ["amoxicillin", "amoxil", "augmentin"],
+    "level": "safe",
+    "advice_en": "Common antibiotics like amoxicillin usually do not affect driving unless you feel unwell.",
+    "advice_ha": "Antibiotics kamar amoxicillin ba su shafar tafiya sai dai idan ba ka ji da lafiya ba.",
+    "advice_yo": "Antibiotics bii amoxicillin ko pọ si wakọ yala o ba wa daradara.",
+    "advice_ig": "Antibiotics dị ka amoxicillin adịghị emetụta ịkwọ ụgbọ ala ma ọ bụrụ na ị adịghị mma."
+  },
+  {
+    "id": "hypertension",
+    "names": ["amlodipine", "lisinopril", "nifedipine", "blood pressure"],
+    "level": "caution",
+    "advice_en": "Blood pressure medicines can cause dizziness when starting or changing dose. Drive cautiously.",
+    "advice_ha": "Magungunan hawan jini na iya haifar da jijjiga a farkon amfani. Ka tafi tafiya a hankali.",
+    "advice_yo": "Oogun blood pressure le fa aifọwọyi ni ibẹrẹ. Wakọ ni akiyesi.",
+    "advice_ig": "Ọgwụ blood pressure nwere ike ime ka ị tụ ụzọ na mmalite. Kpachara anya ịkwọ ụgbọ ala."
+  },
+  {
+    "id": "cough-syrup",
+    "names": ["cough syrup", "expectorant", "robitussin", "benylin"],
+    "level": "caution",
+    "advice_en": "Some cough syrups contain sedating ingredients. Read the label and avoid driving if drowsy.",
+    "advice_ha": "Wasu shiruwan tari suna da abubuwan da ke sa barci. Ka karanta lakabi kuma ka guji tafiya idan ka ji barci.",
+    "advice_yo": "Awọn cough syrup kan ni awọn ohun elo ti o fa oorun. Ka akọwe aami ati yago fun wakọ ti o ba ni oorun.",
+    "advice_ig": "Cough syrup ụfọdụ nwere ihe na-akpata ụra. Gụọ label ma zere ịkwọ ụgbọ ala ma ị na-arahụ ụra."
+  },
+  {
+    "id": "artemether",
+    "names": ["artemether", "lumefantrine", "coartem", "malaria tablet"],
+    "level": "caution",
+    "advice_en": "Malaria treatment can cause weakness or dizziness. Rest and avoid driving until recovered.",
+    "advice_ha": "Magani na malaria na iya haifar da rauni ko jijjiga. Ka huta kuma ka guji tafiya har ka farfado.",
+    "advice_yo": "Itọju malaria le fa agbara tabi aifọwọyi. Sinmi ati yago fun wakọ titi ti o ba san.",
+    "advice_ig": "Ịgwọ malaria nwere ike ime ka ị dị adịghị ike ma ọ bụ tụ ụzọ. Zuru ike ma zere ịkwọ ụgbọ ala ruo mgbe ị dịla mma."
+  }
+]

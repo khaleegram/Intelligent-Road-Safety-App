@@ -1,0 +1,32 @@
+[
+  {
+    "id": "speeding-urban",
+    "category": "speeding",
+    "title": "Dinku ara ilu",
+    "body": "Awọn ọna ni Lagos, Abuja, ati Kano ni awọn arinrin-ajo, okada, ati awọn iho. Duro ni tabi kere si 50 km/h ni ilu yala aami naa sọ bẹẹ. Idinku ara ilu n pa lọ laarin iṣoro ọna."
+  },
+  {
+    "id": "seatbelts-all",
+    "category": "seatbelts",
+    "title": "Fi seatbelt lo ni gbogbo irin-ajo",
+    "body": "FRSC nilo seatbelt ni iwaju ati nigbati o ṣee ṣe ni ẹhin. Ṣe idanwo pe awọn alagbata ti di ṣiṣan ṣaaju tite siwaju, pataki awọn ọmọde. Irin-ajo kukuru laisi belt lewu lori ọna Nigeria."
+  },
+  {
+    "id": "night-lights",
+    "category": "night",
+    "title": "Wa ni akiyesi ni alẹ",
+    "body": "Awọn ọna pupọ ko ni ina ita. Lo low beam ni iṣoro ọna, high beam nikan nigbati o wa nikan, ki o si dinku ara. Ṣe akiyesi awọn ọkọ ti o ti bajẹ, eranko, ati awọn bump ti ko ni aami."
+  },
+  {
+    "id": "weather-rain",
+    "category": "weather",
+    "title": "Wakọ ni akoko ojo",
+    "body": "Ni ojo pupọ, fa ijinna siwaju ki o si yago fun braki laifọwọyi. Eru Harmattan n dinku riran—lo wipers ati ina ọkọ. Ti omi ba bo ọna, ma ṣe ṣe igbẹkẹle ijin ijinna; pada pada ti o ko da ọ."
+  },
+  {
+    "id": "intersections-yield",
+    "category": "intersections",
+    "title": "Wọle si awọn ipade ọna ni ifaransin",
+    "body": "Ni T-junctions ati roundabouts, ro pe awọn miiran le ma fun ọ laaye. Wo osi-an-an-osi, fi aami han ni kikankankan, ki o si ma da ipade naa duro. Awọn keke-keke n ṣe filter—wo awọn agbekọri ṣaaju yiyi."
+  }
+]

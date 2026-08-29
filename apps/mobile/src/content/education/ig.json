@@ -1,0 +1,32 @@
+[
+  {
+    "id": "speeding-urban",
+    "category": "speeding",
+    "title": "Belata ngwa ngwa na obodo",
+    "body": "Uzo na Lagos, Abuja, na Kano nwere ndi na-agagharị na okada na ụdọ. Debe ngwa ngwa na ma ọ bụ n'okpuru 50 km/h na obodo ma ọ bụrụ na akara anaghị egosi ọzọ. Ibelata ngwa ngwa na-echepụ ndụ mgbe okporo ụzọ adịghị mma."
+  },
+  {
+    "id": "seatbelts-all",
+    "category": "seatbelts",
+    "title": "Tinye seatbelt na njem ọ bụla",
+    "body": "FRSC chọrọ seatbelt n'ihu ma na-atụ aro nke azụ. Lelee na ndị na-abata ejikọtara tupu ịpụ, especially ụmụaka. Oge njem dị mkpirikpi na-enweghị belt ka dị ịrịsa na uzo Nigeria."
+  },
+  {
+    "id": "night-lights",
+    "category": "night",
+    "title": "Kpachara anya na abalị",
+    "body": "Uzo ọtụtụ enweghị ọkụ ọwa. Jiri low beam na okporo ụzọ, high beam naanị mgbe ị nọ n'onwe gị, belata ngwa ngwa. Lelee ụgbọ ala mebiri emebi, anụmanụ, na bumps enweghị akara."
+  },
+  {
+    "id": "weather-rain",
+    "category": "weather",
+    "title": "Ikwu uzo na oge mmiri ozuzo",
+    "body": "Na mmiri ozuzo siri ike, mgbasa ohere n'ihu ma zere ịkwụ brake n'ọsọọsọ. Ude Harmattan na-ewepụ nleba anya—jikọọ wipers na ọkụ ụgbọ ala. Ọ bụrụ na mmiri kpuchiri uzo, echela ijin omi; laghachi ma ọ bụrụ na ị maghị."
+  },
+  {
+    "id": "intersections-yield",
+    "category": "intersections",
+    "title": "Bata junctions nwayọọ",
+    "body": "Na T-junctions na roundabouts, chee na ndị ọzọ nwere ike ịnye gị ohere. Lelee aka ekpe-aka nri-aka ekpe, gosi akara ngwa ngwa, ma ghara igbochi junction. Okada na-abata site n'etiti—lelee mirrors tupu ịtụgharị."
+  }
+]

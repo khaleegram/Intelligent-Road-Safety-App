@@ -17,53 +17,58 @@ import ListItem from '../components/system/ListItem';
 import EmptyState from '../components/system/EmptyState';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { fetchAdminAlerts } from '../services/firestore';
-import type { AdminAlert } from '../types';
+import { fetchLocalAlerts } from '../services/localAlerts';
+import type { AdminAlert, LocalAlert } from '../types';
 import { useI18n } from '../i18n';
 import { type Theme, useTheme } from '../theme';
 import { useAdminAccess } from '../hooks/useAdminAccess';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 
 export default function NotificationsScreen() {
   const { theme } = useTheme();
   const { t } = useI18n();
   const { isAdmin } = useAdminAccess();
+  const { contentPadding } = useBreakpoint();
   const styles = createStyles(theme);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'Notifications'>>();
 
   const mode = route.params?.mode ?? 'public';
   const [compactBar, setCompactBar] = useState(false);
-  const [loading, setLoading] = useState(mode === 'admin');
+  const [loading, setLoading] = useState(true);
   const [alerts, setAlerts] = useState<AdminAlert[]>([]);
+  const [localAlerts, setLocalAlerts] = useState<LocalAlert[]>([]);
 
   useEffect(() => {
-    if (mode !== 'admin' || !isAdmin) {
-      setLoading(false);
-      setAlerts([]);
-      return;
-    }
-
     let active = true;
-    fetchAdminAlerts()
-      .then((items) => {
-        if (active) {
-          setAlerts(items);
+    setLoading(true);
+
+    const load = async () => {
+      try {
+        if (mode === 'admin' && isAdmin) {
+          const items = await fetchAdminAlerts();
+          if (active) setAlerts(items);
+        } else {
+          const items = await fetchLocalAlerts();
+          if (active) setLocalAlerts(items);
         }
-      })
-      .catch(() => {
+      } catch {
         if (active) {
           setAlerts([]);
+          setLocalAlerts([]);
         }
-      })
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
 
+    load();
     return () => {
       active = false;
     };
   }, [isAdmin, mode]);
+
+  const empty = mode === 'admin' ? alerts.length === 0 : localAlerts.length === 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -76,7 +81,7 @@ export default function NotificationsScreen() {
             setCompactBar(shouldCompact);
           }
         }}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingHorizontal: contentPadding }]}
       >
         <View style={styles.headerWrap}>
           <IslandBar
@@ -104,7 +109,7 @@ export default function NotificationsScreen() {
             </View>
           ) : null}
 
-          {!loading && alerts.length === 0 ? (
+          {!loading && empty ? (
             <EmptyState
               title={t('notifications.emptyTitle')}
               reason={t('notifications.emptyReason')}
@@ -112,14 +117,23 @@ export default function NotificationsScreen() {
             />
           ) : null}
 
-          {alerts.map((item) => (
-            <ListItem
-              key={item.id ?? `${item.created_at}-${item.message}`}
-              title={item.message}
-              subtitle={`${item.type} - ${item.level}`}
-              meta={item.created_at}
-            />
-          ))}
+          {mode === 'admin'
+            ? alerts.map((item) => (
+                <ListItem
+                  key={item.id ?? `${item.created_at}-${item.message}`}
+                  title={item.message}
+                  subtitle={`${item.type} - ${item.level}`}
+                  meta={item.created_at}
+                />
+              ))
+            : localAlerts.map((item) => (
+                <ListItem
+                  key={item.id}
+                  title={item.title}
+                  subtitle={item.message}
+                  meta={item.created_at}
+                />
+              ))}
         </IslandCard>
       </ScrollView>
     </SafeAreaView>

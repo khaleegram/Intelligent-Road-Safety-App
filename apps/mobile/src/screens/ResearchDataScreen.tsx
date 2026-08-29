@@ -13,11 +13,13 @@ import { fetchAccidents } from '../services/firestore';
 import { accidentsToCsv } from '../services/exportCsv';
 import { shareCsvExport } from '../services/exportShare';
 import { useAdminAccess } from '../hooks/useAdminAccess';
+import { useI18n } from '../i18n';
 import { type Theme, useTheme } from '../theme';
 import type { AccidentRecord, AccidentSeverity } from '../types';
 
 export default function ResearchDataScreen() {
   const { theme } = useTheme();
+  const { t } = useI18n();
   const styles = createStyles(theme);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -38,7 +40,7 @@ export default function ResearchDataScreen() {
       })
       .catch((error) => {
         console.error(error);
-        Alert.alert('Load failed', 'Unable to load research dataset.');
+        Alert.alert(t('detail.loadFailedTitle'), t('research.empty'));
       })
       .finally(() => {
         if (mounted) {
@@ -48,7 +50,7 @@ export default function ResearchDataScreen() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [t]);
 
   const filtered = useMemo(() => {
     return accidents.filter((item) => {
@@ -66,12 +68,12 @@ export default function ResearchDataScreen() {
 
   const exportCsv = async () => {
     if (filtered.length === 0) {
-      Alert.alert('No rows', 'There is no data to export for current filters.');
+      Alert.alert(t('research.empty'), t('research.empty'));
       return;
     }
     const csv = accidentsToCsv(filtered, { includeSensitive: true });
     await shareCsvExport({
-      title: 'Research dataset CSV',
+      title: t('research.title'),
       filePrefix: 'research-dataset',
       csv,
     });
@@ -95,9 +97,9 @@ export default function ResearchDataScreen() {
       >
         <View style={styles.headerWrap}>
           <IslandBar
-            eyebrow="Research"
-            title="Research data"
-            subtitle="Filter and export datasets"
+            eyebrow={t('research.eyebrow')}
+            title={t('research.title')}
+            subtitle={t('research.subtitle')}
             mode="admin"
             compact={compactBar}
             isAdmin={isAdmin}
@@ -110,26 +112,20 @@ export default function ResearchDataScreen() {
         </View>
         {!authLoading && !isAdmin ? (
           <IslandCard style={styles.card}>
-            <Text style={styles.sectionTitle}>Access denied</Text>
-            <Text style={styles.muted}>Admin access is required for research exports.</Text>
-            <Button label="Back" variant="secondary" onPress={() => navigation.goBack()} />
+            <Text style={styles.sectionTitle}>{t('common.adminRequired')}</Text>
+            <Button label={t('common.back')} variant="secondary" onPress={() => navigation.goBack()} />
           </IslandCard>
         ) : null}
         {!authLoading && !isAdmin ? null : (
           <>
-        <Text style={styles.title}>Research Data View</Text>
-        <Text style={styles.subtitle}>
-          Filter accident reports and export CSV for approved analysis.
-        </Text>
         <IslandCard style={styles.card}>
-          <Text style={styles.sectionTitle}>Filters</Text>
           <View style={styles.filterRow}>
             {(['All', 'Fatal', 'Critical', 'Minor', 'Damage Only'] as const).map((value) => (
               <GradientChip
                 key={value}
                 style={styles.chip}
                 active={severityFilter === value}
-                label={value}
+                label={value === 'All' ? t('common.clear') : t(`options.severity.${value}`)}
                 onPress={() => setSeverityFilter(value)}
               />
             ))}
@@ -140,25 +136,25 @@ export default function ResearchDataScreen() {
                 key={String(value)}
                 style={styles.chip}
                 active={daysFilter === value}
-                label={value === 'All' ? 'All days' : value === 1 ? '24h' : `${value}d`}
+                label={value === 'All' ? t('common.clear') : String(value)}
                 onPress={() => setDaysFilter(value)}
               />
             ))}
           </View>
           <TextInput
             style={styles.input}
-            placeholder="Search road/weather text"
+            placeholder={t('search.placeholder')}
             placeholderTextColor={theme.tokens.color.textSecondary}
             value={searchText}
             onChangeText={setSearchText}
           />
-          <Button label="Export CSV" onPress={exportCsv} disabled={filtered.length === 0} />
+          <Button label={t('research.export')} onPress={exportCsv} disabled={filtered.length === 0} />
         </IslandCard>
 
         <IslandCard style={styles.card}>
-          <Text style={styles.sectionTitle}>Rows ({filtered.length})</Text>
-          {loading ? <Text style={styles.muted}>Loading...</Text> : null}
-          {!loading && filtered.length === 0 ? <Text style={styles.muted}>No rows match filters.</Text> : null}
+          <Text style={styles.sectionTitle}>{filtered.length}</Text>
+          {loading ? <Text style={styles.muted}>{t('research.loading')}</Text> : null}
+          {!loading && filtered.length === 0 ? <Text style={styles.muted}>{t('research.empty')}</Text> : null}
           {filtered.slice(0, 50).map((item) => (
             <View key={item.id ?? item.request_id} style={styles.row}>
               <Text style={styles.rowTitle}>{item.severity} - {item.road_type}</Text>
@@ -167,7 +163,7 @@ export default function ResearchDataScreen() {
           ))}
         </IslandCard>
 
-        <Button label="Back" variant="secondary" onPress={() => navigation.goBack()} />
+        <Button label={t('common.back')} variant="secondary" onPress={() => navigation.goBack()} />
           </>
         )}
       </ScrollView>

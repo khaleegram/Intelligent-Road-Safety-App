@@ -1,0 +1,32 @@
+[
+  {
+    "id": "speeding-urban",
+    "category": "speeding",
+    "title": "Rage a hankali a birane",
+    "body": "Hanyoyi a Lagos, Abuja, da Kano suna da mutane da ke tafiya da keke da ramuka. Ka kiyaye saurin 50 km/h a birane sai dai alamar ta nuna wani abu. Rage sauri yana ceton rayuka a cikin zafi."
+  },
+  {
+    "id": "seatbelts-all",
+    "category": "seatbelts",
+    "title": "Ka yi amfani da belt a kowane tafiya",
+    "body": "FRSC tana buƙatar belt a gaba kuma tana ba da shawara a baya ma. Tabbatar da fataucin kafin tafiya, musamman yara. Tafiya ta gajarta ba tare da belt ba har yanzu tana da haɗari."
+  },
+  {
+    "id": "night-lights",
+    "category": "night",
+    "title": "Ka taka hankali da daddare",
+    "body": "Hanyoyi da yawa ba su da haske. Yi amfani da fitilu ƙarami a cikin zafi, babba kawai idan babu wani. Rage sauri kuma ka lura da motoci da suka lalace da dabbobi."
+  },
+  {
+    "id": "weather-rain",
+    "category": "weather",
+    "title": "Tafiya a lokacin ruwan sama",
+    "body": "A lokacin ruwan sama ka ƙara nisan da ke tsakaninka da motar da ke gaba. Feshin harmattan yana rage gani—ka yi amfani da wipers da fitilu. Idan ruwa ya rufe hanya, kada ka yi hasashen zurfinsa."
+  },
+  {
+    "id": "intersections-yield",
+    "category": "intersections",
+    "title": "Ka shiga guraren haɗuwa a hankali",
+    "body": "A T-junctions da roundabouts, ka yi tunanin wasu ba za su ba ka damar wucewa ba. Duba hagu-dama-hagu, ka nuna alama da wuri, kuma kada ka toshe gurbin. Keke-kan-keke suna shiga cikin layi—duba madubi kafin juyawa."
+  }
+]

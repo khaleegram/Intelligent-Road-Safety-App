@@ -11,11 +11,15 @@ import IslandCard from '../components/IslandCard';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { fetchAccidentById, fetchHotspots, updateAccidentVerification } from '../services/firestore';
 import { useAdminAccess } from '../hooks/useAdminAccess';
+import { useBreakpoint } from '../hooks/useBreakpoint';
+import { useI18n } from '../i18n';
 import { type Theme, useTheme } from '../theme';
 import type { AccidentRecord, HotspotRecord } from '../types';
 
 export default function AccidentDetailScreen() {
   const { theme } = useTheme();
+  const { t } = useI18n();
+  const { contentPadding } = useBreakpoint();
   const styles = createStyles(theme);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -42,7 +46,7 @@ export default function AccidentDetailScreen() {
         setNotes(accidentData?.notes ?? '');
       } catch (error) {
         console.error(error);
-        Alert.alert('Load failed', 'Unable to load accident details.');
+        Alert.alert(t('detail.loadFailedTitle'), t('detail.loadFailedAccident'));
       } finally {
         if (mounted) {
           setLoading(false);
@@ -53,7 +57,7 @@ export default function AccidentDetailScreen() {
     return () => {
       mounted = false;
     };
-  }, [route.params.accidentId]);
+  }, [route.params.accidentId, t]);
 
   const relatedHotspot = useMemo<HotspotRecord | null>(() => {
     if (!accident || hotspots.length === 0) return null;
@@ -83,10 +87,13 @@ export default function AccidentDetailScreen() {
       });
       const refreshed = await fetchAccidentById(accident.id);
       setAccident(refreshed);
-      Alert.alert('Saved', verified ? 'Report verified.' : 'Report rejected.');
+      Alert.alert(
+        t('detail.savedTitle'),
+        verified ? t('detail.verifiedText') : t('detail.rejectedText')
+      );
     } catch (error) {
       console.error(error);
-      Alert.alert('Update failed', 'Unable to update verification status.');
+      Alert.alert(t('detail.updateFailedTitle'), t('detail.updateFailedText'));
     } finally {
       setSaving(false);
     }
@@ -96,7 +103,7 @@ export default function AccidentDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <Text style={styles.muted}>Loading accident details...</Text>
+          <Text style={styles.muted}>{t('detail.loadingAccident')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -106,8 +113,8 @@ export default function AccidentDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <Text style={styles.muted}>Accident not found.</Text>
-          <Button label="Back" onPress={() => navigation.goBack()} />
+          <Text style={styles.muted}>{t('detail.accidentNotFound')}</Text>
+          <Button label={t('common.back')} onPress={() => navigation.goBack()} />
         </View>
       </SafeAreaView>
     );
@@ -126,14 +133,14 @@ export default function AccidentDetailScreen() {
         }}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: theme.spacing.lg + insets.bottom },
+          { paddingHorizontal: contentPadding, paddingBottom: theme.spacing.lg + insets.bottom },
         ]}
       >
         <View style={styles.headerWrap}>
           <IslandBar
-            eyebrow="Details"
-            title="Accident detail"
-            subtitle="Report review and verification"
+            eyebrow={t('detail.accidentEyebrow')}
+            title={t('detail.accidentTitle')}
+            subtitle={t('detail.accidentSubtitle')}
             mode={isAdmin ? 'admin' : 'public'}
             compact={compactBar}
             isAdmin={isAdmin}
@@ -147,50 +154,56 @@ export default function AccidentDetailScreen() {
           />
         </View>
         <IslandCard style={styles.card}>
-          <Text style={styles.label}>ID</Text>
-          <Text style={styles.value}>{accident.id ?? accident.request_id ?? '--'}</Text>
-          <Text style={styles.label}>Severity</Text>
+          <Text style={styles.label}>{t('detail.id')}</Text>
+          <Text style={styles.value}>{accident.id ?? accident.request_id ?? t('common.none')}</Text>
+          <Text style={styles.label}>{t('detail.severity')}</Text>
           <Text style={styles.value}>{accident.severity}</Text>
-          <Text style={styles.label}>Location</Text>
+          <Text style={styles.label}>{t('detail.location')}</Text>
           <Text style={styles.value}>
             {accident.latitude.toFixed(5)}, {accident.longitude.toFixed(5)}
           </Text>
-          <Text style={styles.label}>Road / Weather</Text>
+          <Text style={styles.label}>{t('detail.roadWeather')}</Text>
           <Text style={styles.value}>
             {accident.road_type} - {accident.weather}
           </Text>
-          <Text style={styles.label}>Vehicles / Casualties</Text>
+          <Text style={styles.label}>{t('detail.vehiclesCasualties')}</Text>
           <Text style={styles.value}>
             {accident.vehicle_count} / {accident.casualty_count}
           </Text>
-          <Text style={styles.label}>Reporter</Text>
-          <Text style={styles.value}>{accident.reporter_uid ?? '--'}</Text>
-          <Text style={styles.label}>Submitted</Text>
+          <Text style={styles.label}>{t('detail.reporter')}</Text>
+          <Text style={styles.value}>{accident.reporter_uid ?? t('common.none')}</Text>
+          <Text style={styles.label}>{t('detail.submitted')}</Text>
           <Text style={styles.value}>{accident.created_at ?? accident.timestamp}</Text>
         </IslandCard>
 
         <IslandCard style={styles.card}>
-          <Text style={styles.sectionTitle}>Verification</Text>
-          <Text style={styles.value}>Verified: {accident.verified ? 'Yes' : 'No'}</Text>
-          <Text style={styles.value}>Verified by: {accident.verified_by ?? '--'}</Text>
-          <Text style={styles.value}>Verified at: {accident.verified_at ?? '--'}</Text>
-          <Text style={styles.label}>Notes</Text>
+          <Text style={styles.sectionTitle}>{t('detail.verification')}</Text>
+          <Text style={styles.value}>
+            {t('detail.verified', { value: accident.verified ? t('common.enabled') : t('common.disabled') })}
+          </Text>
+          <Text style={styles.value}>
+            {t('detail.verifiedBy', { value: accident.verified_by ?? t('common.none') })}
+          </Text>
+          <Text style={styles.value}>
+            {t('detail.verifiedAt', { value: accident.verified_at ?? t('common.none') })}
+          </Text>
+          <Text style={styles.label}>{t('detail.notes')}</Text>
           <TextInput
             style={styles.input}
             value={notes}
             onChangeText={setNotes}
-            placeholder="Add review notes"
+            placeholder={t('detail.notesPlaceholder')}
             placeholderTextColor={theme.tokens.color.textSecondary}
             multiline
           />
           <View style={styles.actionRow}>
             <Button
-              label={saving ? 'Saving...' : 'Verify'}
+              label={saving ? t('detail.saving') : t('detail.verify')}
               onPress={() => applyVerification(true)}
               disabled={saving}
             />
             <Button
-              label={saving ? 'Saving...' : 'Reject'}
+              label={saving ? t('detail.saving') : t('detail.reject')}
               variant="secondary"
               onPress={() => applyVerification(false)}
               disabled={saving}
@@ -200,12 +213,12 @@ export default function AccidentDetailScreen() {
 
         {relatedHotspot ? (
           <IslandCard style={styles.card}>
-            <Text style={styles.sectionTitle}>Related hotspot</Text>
+            <Text style={styles.sectionTitle}>{t('detail.relatedHotspot')}</Text>
             <Text style={styles.value}>
-              {relatedHotspot.severity_level} ({relatedHotspot.accident_count} accidents)
+              {relatedHotspot.severity_level} ({relatedHotspot.accident_count})
             </Text>
             <Button
-              label="Open hotspot detail"
+              label={t('detail.openHotspot')}
               variant="secondary"
               onPress={() =>
                 navigation.navigate('HotspotDetail', { hotspotId: relatedHotspot.area_id })
@@ -214,7 +227,7 @@ export default function AccidentDetailScreen() {
           </IslandCard>
         ) : null}
 
-        <Button label="Back" variant="secondary" onPress={() => navigation.goBack()} />
+        <Button label={t('common.back')} variant="secondary" onPress={() => navigation.goBack()} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -240,11 +253,6 @@ const createStyles = (theme: Theme) =>
       marginBottom: theme.tokens.spacing[2],
       backgroundColor: theme.tokens.color.background,
       paddingBottom: theme.tokens.spacing[2],
-    },
-    title: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: theme.colors.text,
     },
     card: {
       gap: 6,

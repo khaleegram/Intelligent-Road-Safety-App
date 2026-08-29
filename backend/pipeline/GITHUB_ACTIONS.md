@@ -1,25 +1,36 @@
 # GitHub Actions (No Billing)
 
-This runs the hotspot pipeline on a schedule using GitHub Actions.
+Runs the SafeDrive NG analytical loop on a schedule using GitHub Actions:
+
+1. Compute hotspots  
+2. Publish advisory `risk_predictions`  
+3. Notify devices with Expo push tokens  
 
 ## 1) Add secrets to your GitHub repo
-Go to **Settings ? Secrets and variables ? Actions ? New repository secret** and add:
+
+**Settings → Secrets and variables → Actions → New repository secret:**
 
 - `FIREBASE_PROJECT_ID`
 - `FIREBASE_CLIENT_EMAIL`
 - `FIREBASE_PRIVATE_KEY`
 
-For `FIREBASE_PRIVATE_KEY`, paste it exactly with line breaks, or use `\n` and the pipeline will normalize.
+For `FIREBASE_PRIVATE_KEY`, paste with real line breaks, or use `\n` (pipeline normalizes).
 
 ## 2) Workflow file
-Already added:
 
-- `.github/workflows/hotspot-pipeline.yml`
+[`.github/workflows/hotspot-pipeline.yml`](../../.github/workflows/hotspot-pipeline.yml)
 
-It runs every 6 hours and can be triggered manually (Run workflow).
+- Cron: every 6 hours  
+- Manual: Actions → Hotspot Pipeline → Run workflow  
 
-## 3) Change schedule
-Edit the cron in `.github/workflows/hotspot-pipeline.yml`.
+## 3) Local equivalent
 
-## 4) Test
-Go to Actions ? Hotspot Pipeline ? Run workflow.
+```powershell
+# From repo root, with credentials in env:
+node scripts/run-data-loop.mjs
+node scripts/run-data-loop.mjs --skip-push
+```
+
+## 4) Change schedule
+
+Edit the `cron` in `.github/workflows/hotspot-pipeline.yml`.

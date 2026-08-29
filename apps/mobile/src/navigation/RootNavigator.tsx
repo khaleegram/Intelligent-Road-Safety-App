@@ -15,6 +15,11 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ResearchDataScreen from '../screens/ResearchDataScreen';
 import SearchScreen from '../screens/SearchScreen';
+import SosScreen from '../screens/SosScreen';
+import EducationScreen from '../screens/EducationScreen';
+import MedicationScreen from '../screens/MedicationScreen';
+import FeedbackScreen from '../screens/FeedbackScreen';
+import BehaviourScreen from '../screens/BehaviourScreen';
 import { auth } from '../services/firebase';
 import { useTheme } from '../theme';
 
@@ -28,6 +33,11 @@ export type RootStackParamList = {
   Search: { mode?: 'public' | 'admin' } | undefined;
   Notifications: { mode?: 'public' | 'admin' } | undefined;
   Profile: { mode?: 'public' | 'admin' } | undefined;
+  Sos: undefined;
+  Education: undefined;
+  Medication: undefined;
+  Feedback: undefined;
+  Behaviour: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -76,6 +86,11 @@ export default function RootNavigator() {
           <Stack.Screen name="Search" component={SearchScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="Sos" component={SosScreen} />
+          <Stack.Screen name="Education" component={EducationScreen} />
+          <Stack.Screen name="Medication" component={MedicationScreen} />
+          <Stack.Screen name="Feedback" component={FeedbackScreen} />
+          <Stack.Screen name="Behaviour" component={BehaviourScreen} />
         </Stack.Navigator>
       ) : (
         <Stack.Navigator screenOptions={{ headerShown: false }}>

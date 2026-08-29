@@ -27,10 +27,16 @@ import { fetchAccidents, fetchHotspots } from '../services/firestore';
 import { fetchGeocodeSuggestions, type GeocodeSuggestion } from '../services/geocoding';
 import { computeHotspotsFromAccidents } from '../services/hotspotLogic';
 import { sendLocalRiskAlert } from '../services/notifications';
+import { getAlertPreferences } from '../services/alertPreferences';
+import { subscribeToConnectivity } from '../services/connectivity';
+import { pushLocalAlert } from '../services/localAlerts';
+import { fetchRiskPredictions } from '../services/riskPredictions';
+import { fetchWeather } from '../services/weather';
 import { useAdminAccess } from '../hooks/useAdminAccess';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import { useI18n } from '../i18n';
 import { type Theme, useTheme } from '../theme';
-import type { AccidentRecord, HotspotRecord } from '../types';
+import type { AccidentRecord, HotspotRecord, RiskPrediction, WeatherSnapshot } from '../types';
 
 const hasMapboxToken = mapboxToken.length > 0;
 
@@ -165,7 +171,44 @@ export default function MapScreen() {
   const [routeHotspotAlert, setRouteHotspotAlert] = useState<HotspotRecord | null>(
     null
   );
+  const [isOnline, setIsOnline] = useState(true);
+  const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
+  const [congestionLevel, setCongestionLevel] = useState<string | null>(null);
+  const [mlPredictions, setMlPredictions] = useState<RiskPrediction[]>([]);
+  const [alertRadiusMeters, setAlertRadiusMeters] = useState(warningThresholdMeters);
+  const [alertsEnabled, setAlertsEnabled] = useState(true);
+  const { contentPadding } = useBreakpoint();
   const notifiedHotspotsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    return subscribeToConnectivity(setIsOnline);
+  }, []);
+
+  useEffect(() => {
+    getAlertPreferences().then((prefs) => {
+      setAlertsEnabled(prefs.enabled);
+      setAlertRadiusMeters(prefs.radiusMeters);
+    });
+  }, []);
+
+  useEffect(() => {
+    fetchRiskPredictions().then(setMlPredictions).catch(() => setMlPredictions([]));
+  }, []);
+
+  useEffect(() => {
+    if (!userLocation) return;
+    let active = true;
+    fetchWeather(userLocation[1], userLocation[0])
+      .then((snapshot) => {
+        if (active) setWeather(snapshot);
+      })
+      .catch(() => {
+        if (active) setWeather(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [userLocation]);
 
   const newestAccidentTs = useMemo(() => {
     if (accidents.length === 0) return 0;
@@ -308,11 +351,13 @@ export default function MapScreen() {
           if (!active) return;
           setRouteGeometry(result.geometry);
           setRouteDistanceMeters(result.distanceMeters);
+          setCongestionLevel(result.congestionLevel ?? null);
         })
         .catch(() => {
           if (!active) return;
           setRouteGeometry(null);
           setRouteDistanceMeters(null);
+          setCongestionLevel(null);
         })
         .finally(() => {
           if (!active) return;
@@ -451,7 +496,7 @@ export default function MapScreen() {
             routeStart,
             routeDestination
           );
-          return distance <= warningThresholdMeters;
+          return distance <= alertRadiusMeters;
         })
       : [];
 
@@ -474,7 +519,7 @@ export default function MapScreen() {
   }, [routeDestination, warningHotspots]);
 
   useEffect(() => {
-    if (!userLocation || warningHotspots.length === 0) {
+    if (!alertsEnabled || !userLocation || warningHotspots.length === 0) {
       setRouteHotspotAlert(null);
       return;
     }
@@ -483,7 +528,7 @@ export default function MapScreen() {
         userLocation,
         [hotspot.center_lng, hotspot.center_lat]
       );
-      return distance <= warningThresholdMeters;
+      return distance <= alertRadiusMeters;
     });
     if (!nearby) {
       setRouteHotspotAlert(null);
@@ -494,12 +539,15 @@ export default function MapScreen() {
     }
     notifiedHotspotsRef.current.add(nearby.area_id);
     setRouteHotspotAlert(nearby);
+    const title = t('map.routeAlertTitle');
+    const body = t('map.routeAlertText', { severity: nearby.severity_level });
+    pushLocalAlert({ title, message: body, type: 'proximity' }).catch(() => undefined);
     sendLocalRiskAlert({
-      title: t('map.routeAlertTitle'),
-      body: t('map.routeAlertText', { severity: nearby.severity_level }),
+      title,
+      body,
       data: { hotspotId: nearby.area_id },
     }).catch((error) => console.error('Risk alert notification failed', error));
-  }, [userLocation, warningHotspots]);
+  }, [alertsEnabled, alertRadiusMeters, userLocation, warningHotspots, t]);
 
   const accidentsGeoJson = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(
     () => ({
@@ -755,7 +803,7 @@ export default function MapScreen() {
         keyboardDismissMode="on-drag"
         contentContainerStyle={[
           styles.screenContent,
-          { paddingBottom: theme.spacing.lg + tabBarHeight },
+          { paddingHorizontal: contentPadding, paddingBottom: theme.spacing.lg + tabBarHeight },
         ]}
       >
         <View style={styles.topBar}>
@@ -773,6 +821,30 @@ export default function MapScreen() {
             }}
           />
         </View>
+          {!isOnline ? (
+            <View style={styles.banner}>
+              <Text style={styles.bannerTitle}>{t('common.offline')}</Text>
+              <Text style={styles.bannerText}>{t('map.offlineBanner')}</Text>
+            </View>
+          ) : null}
+          {weather ? (
+            <View style={styles.banner}>
+              <Text style={styles.bannerText}>
+                {t('map.weatherChip', {
+                  temp: Math.round(weather.tempC),
+                  condition: t(`weather.${weather.conditionKey}`),
+                  wind: Math.round(weather.windKmh),
+                })}
+              </Text>
+            </View>
+          ) : null}
+          {mlPredictions[0] ? (
+            <View style={styles.banner}>
+              <Text style={styles.bannerText}>
+                {t('map.mlRiskAdvisory', { version: mlPredictions[0].model_version })}
+              </Text>
+            </View>
+          ) : null}
           <IslandCard
             style={styles.mapSectionOuter}
             contentStyle={styles.mapSectionInner}
@@ -955,7 +1027,7 @@ export default function MapScreen() {
               />
             </View>
           <Text style={styles.routeHint}>
-            {t('map.routeWarningRadius', { meters: warningThresholdMeters })}
+            {t('map.routeWarningRadius', { meters: alertRadiusMeters })}
           </Text>
           {routeDestination && routeLoading ? (
             <Text style={styles.routeHint}>{t('map.routeFinding')}</Text>
@@ -968,6 +1040,15 @@ export default function MapScreen() {
             </Text>
           ) : routeDestination && !userLocation ? (
             <Text style={styles.routeDistance}>{t('map.routeNoLocation')}</Text>
+          ) : null}
+          {routeDestination ? (
+            <Text style={styles.routeHint}>
+              {congestionLevel
+                ? t('map.routeCongestion', {
+                    level: t(`congestion.${congestionLevel}`),
+                  })
+                : t('map.routeCongestionUnknown')}
+            </Text>
           ) : null}
           {routeDestination && warningHotspots.length > 0 ? (
             <View style={styles.routeWarning}>

@@ -3,14 +3,14 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 export default ({ config }: ConfigContext): ExpoConfig => {
   return {
     ...config,
-    name: config.name ?? 'RoadSafe',
-    slug: config.slug ?? 'roadsafe',
+    name: config.name ?? 'SafeDrive NG',
+    slug: config.slug ?? 'safedrive-ng',
     plugins: [
       ...(config.plugins ?? []),
       [
         'expo-location',
         {
-          locationWhenInUsePermission: 'Allow RoadSafe to access your location.',
+          locationWhenInUsePermission: 'Allow SafeDrive NG to access your location.',
         },
       ],
       [
@@ -26,6 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ...config.extra,
       mapboxToken: process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '',
       adminRoleEndpoint: process.env.EXPO_PUBLIC_ADMIN_ROLE_ENDPOINT ?? '',
+      appCheckDebugToken: process.env.EXPO_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN ?? '',
       firebase: {
         apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? '',
         authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ?? '',

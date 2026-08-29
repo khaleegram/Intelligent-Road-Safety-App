@@ -24,6 +24,7 @@ import { mapboxToken, missingFirebaseKeys } from '../config/env';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { createAccident } from '../services/firestore';
 import { fetchGeocodeSuggestions, type GeocodeSuggestion } from '../services/geocoding';
+import { subscribeToConnectivity } from '../services/connectivity';
 import { offlineQueue } from '../services/offlineQueue';
 import { buildAccidentRecord, validateReportDraft } from '../services/reportValidation';
 import { useAdminAccess } from '../hooks/useAdminAccess';
@@ -77,6 +78,11 @@ export default function ReportScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [compactBar, setCompactBar] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    return subscribeToConnectivity(setIsOnline);
+  }, []);
   const roadTypeValue = useMemo(
     () => (roadTypePreset === 'Other' ? roadTypeCustom.trim() : roadTypePreset),
     [roadTypeCustom, roadTypePreset]
@@ -271,6 +277,12 @@ export default function ReportScreen() {
             }}
           />
         </View>
+      {!isOnline ? (
+        <View style={styles.banner}>
+          <Text style={styles.bannerTitle}>{t('common.offline')}</Text>
+          <Text style={styles.bannerText}>{t('report.offlineBanner')}</Text>
+        </View>
+      ) : null}
       {!hasMapboxToken ? (
         <View style={styles.banner}>
           <Text style={styles.bannerTitle}>{t('report.mapboxMissingTitle')}</Text>

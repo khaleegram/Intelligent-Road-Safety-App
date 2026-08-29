@@ -5,6 +5,7 @@
   "scripts": {
     "export:accidents": "node export-accidents.mjs",
     "import:dataset": "node import-dataset.mjs",
+    "publish:risk": "node publish-risk-predictions.mjs",
     "test:import": "node tests/import-dataset.test.mjs"
   },
   "dependencies": {

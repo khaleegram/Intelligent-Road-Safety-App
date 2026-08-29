@@ -10,9 +10,14 @@
   },
   "include": [
     "src/types.ts",
+    "src/i18n/en.json",
+    "src/i18n/ha.json",
+    "src/i18n/yo.json",
+    "src/i18n/ig.json",
     "src/services/offlineQueueCore.ts",
     "src/services/reportValidation.ts",
     "src/services/offlineQueue.test.ts",
-    "src/services/reportValidation.test.ts"
+    "src/services/reportValidation.test.ts",
+    "src/services/i18nParity.test.ts"
   ]
 }

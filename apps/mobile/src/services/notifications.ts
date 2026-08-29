@@ -72,3 +72,26 @@ export async function sendLocalRiskAlert(params: {
     trigger: null,
   });
 }
+
+export async function getExpoPushToken(): Promise<string | null> {
+  if (!notificationsModule) return null;
+  const granted = await ensureNotificationPermission();
+  if (!granted) return null;
+
+  try {
+    const Constants = require('expo-constants').default as {
+      easConfig?: { projectId?: string };
+      expoConfig?: { extra?: { eas?: { projectId?: string } } };
+    };
+    const projectId =
+      Constants.easConfig?.projectId ??
+      Constants.expoConfig?.extra?.eas?.projectId;
+    const result = projectId
+      ? await notificationsModule.getExpoPushTokenAsync({ projectId })
+      : await notificationsModule.getExpoPushTokenAsync();
+    return typeof result?.data === 'string' ? result.data : null;
+  } catch (error) {
+    console.warn('Expo push token unavailable', error);
+    return null;
+  }
+}

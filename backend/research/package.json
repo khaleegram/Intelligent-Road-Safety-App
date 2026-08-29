@@ -1,0 +1,11 @@
+{
+  "name": "safedrive-research",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "export:sem": "node export-sem-csv.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.2"
+  }
+}

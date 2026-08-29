@@ -1,0 +1,32 @@
+[
+  {
+    "id": "speeding-urban",
+    "category": "speeding",
+    "title": "Slow down in built-up areas",
+    "body": "Urban roads in Lagos, Abuja, and Kano often have pedestrians, okadas, and potholes. Stay at or below 50 km/h in towns unless signs say otherwise. Speed limits save lives when traffic is unpredictable."
+  },
+  {
+    "id": "seatbelts-all",
+    "category": "seatbelts",
+    "title": "Buckle up every trip",
+    "body": "FRSC requires front-seat belts and recommends rear belts too. Check that passengers are secured before moving, especially children. A short trip without a belt is still risky on Nigerian roads."
+  },
+  {
+    "id": "night-lights",
+    "category": "night",
+    "title": "Drive with care at night",
+    "body": "Many roads lack street lighting. Use low beams in traffic, high beams only when alone, and reduce speed. Watch for broken-down vehicles, animals, and unmarked speed bumps."
+  },
+  {
+    "id": "weather-rain",
+    "category": "weather",
+    "title": "Rain and wet-season driving",
+    "body": "During heavy rain, increase following distance and avoid sudden braking. Harmattan dust reduces visibility—use wipers and headlights. If water covers the road, do not guess the depth; turn back if unsure."
+  },
+  {
+    "id": "intersections-yield",
+    "category": "intersections",
+    "title": "Approach junctions slowly",
+    "body": "At T-junctions and roundabouts, assume others may not yield. Look left-right-left, signal early, and avoid blocking the intersection. Motorcycles often filter—check mirrors before turning."
+  }
+]

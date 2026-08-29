@@ -58,3 +58,77 @@ export type AdminAlert = {
   count_24h?: number;
   threshold?: number;
 };
+
+export type AlertPreferences = {
+  enabled: boolean;
+  radiusMeters: number;
+};
+
+export type LocalAlert = {
+  id: string;
+  title: string;
+  message: string;
+  created_at: string;
+  type: string;
+};
+
+export type EmergencyContact = {
+  id?: string;
+  name: string;
+  phone: string;
+  relationship?: string;
+  created_at?: string;
+};
+
+export type RiskPrediction = {
+  cell_id: string;
+  center_lat: number;
+  center_lng: number;
+  risk_score: number;
+  model_version: string;
+  updated_at: string;
+  advisory_only: boolean;
+};
+
+export type BehaviourTrip = {
+  id: string;
+  uid: string;
+  started_at: string;
+  ended_at: string;
+  score: number;
+  harsh_events: number;
+  distance_m: number;
+  consent_version: string;
+};
+
+export type WeatherSnapshot = {
+  tempC: number;
+  windKmh: number;
+  code: number;
+  conditionKey:
+    | 'Clear'
+    | 'Cloudy'
+    | 'Fog'
+    | 'Drizzle'
+    | 'Rain'
+    | 'Snow'
+    | 'Thunderstorm'
+    | 'Unknown';
+};
+
+export type EducationArticle = {
+  id: string;
+  category: 'speeding' | 'seatbelts' | 'night' | 'weather' | 'intersections';
+  title: string;
+  body: string;
+};
+
+export type MedicationEntry = {
+  id: string;
+  names: string[];
+  level: 'safe' | 'caution' | 'avoid';
+  advice_en: string;
+  advice_ha: string;
+  advice_yo: string;
+  advice_ig: string;
+};

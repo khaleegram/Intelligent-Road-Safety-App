@@ -23,6 +23,7 @@ import {
   fetchHotspots,
   fetchUsers,
 } from '../services/firestore';
+import { fetchRiskPredictions } from '../services/riskPredictions';
 import { accidentsToCsv } from '../services/exportCsv';
 import { shareCsvExport } from '../services/exportShare';
 import { updateUserAdminRole } from '../services/adminRoles';
@@ -34,6 +35,7 @@ import type {
   AccidentSeverity,
   AdminAlert,
   HotspotRecord,
+  RiskPrediction,
   UserProfile,
 } from '../types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -57,6 +59,7 @@ export default function AdminScreen({
   const [hotspots, setHotspots] = useState<HotspotRecord[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [alerts, setAlerts] = useState<AdminAlert[]>([]);
+  const [riskMeta, setRiskMeta] = useState<RiskPrediction | null>(null);
   const [loading, setLoading] = useState(false);
   const [savingRoleUid, setSavingRoleUid] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -71,16 +74,18 @@ export default function AdminScreen({
 
   const load = async () => {
     setLoading(true);
-    const [accidentData, hotspotData, userData, alertData] = await Promise.all([
+    const [accidentData, hotspotData, userData, alertData, riskData] = await Promise.all([
       fetchAccidents(),
       fetchHotspots(),
       fetchUsers(),
       fetchAdminAlerts(),
+      fetchRiskPredictions().catch(() => []),
     ]);
     setAccidents(accidentData);
     setHotspots(hotspotData);
     setUsers(userData);
     setAlerts(alertData);
+    setRiskMeta(riskData[0] ?? null);
     setLastRefreshed(new Date());
     setLoading(false);
   };
@@ -233,7 +238,7 @@ export default function AdminScreen({
         ) : null}
         {recent24hCount >= 5 ? (
           <View style={styles.spikeBanner}>
-            <Text style={styles.spikeTitle}>Spike alert</Text>
+            <Text style={styles.spikeTitle}>{t('admin.spikeAlert')}</Text>
             <Text style={styles.spikeText}>
               {recent24hCount} reports were submitted in the last 24 hours.
             </Text>
@@ -249,7 +254,7 @@ export default function AdminScreen({
             <Text style={styles.listTitle}>{latestAlert.message}</Text>
             <Text style={styles.listMeta}>{latestAlert.created_at}</Text>
             {latestAlert.type === 'spike' ? (
-              <Button label="Investigate spike now" variant="secondary" onPress={inspectSpike} />
+              <Button label={t('admin.investigateSpike')} variant="secondary" onPress={inspectSpike} />
             ) : null}
           </View>
         ) : null}
@@ -275,6 +280,14 @@ export default function AdminScreen({
               value: lastRefreshed ? lastRefreshed.toLocaleString() : t('common.none'),
             })}
           </Text>
+          <Text style={styles.metaText}>
+            {riskMeta
+              ? t('admin.mlRiskMeta', {
+                  version: riskMeta.model_version,
+                  updated: riskMeta.updated_at,
+                })
+              : t('admin.mlRiskNone')}
+          </Text>
           {!authLoading && !authUser ? (
             <Text style={styles.emptyText}>{t('admin.signInPrompt')}</Text>
           ) : null}
@@ -293,7 +306,7 @@ export default function AdminScreen({
           ) : null}
           {isAdmin ? (
             <Button
-              label="Open Research Data View"
+              label={t('admin.openResearch')}
               variant="secondary"
               onPress={() => navigation.navigate('ResearchData')}
             />
@@ -350,7 +363,7 @@ export default function AdminScreen({
             </View>
             <TextInput
               style={styles.filterInput}
-              placeholder="Filter by road/weather text"
+              placeholder={t('search.placeholder')}
               placeholderTextColor={theme.tokens.color.textSecondary}
               value={regionFilter}
               onChangeText={setRegionFilter}

@@ -11,6 +11,8 @@ import IslandCard from '../components/IslandCard';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { fetchAccidents, fetchHotspotById } from '../services/firestore';
 import { useAdminAccess } from '../hooks/useAdminAccess';
+import { useBreakpoint } from '../hooks/useBreakpoint';
+import { useI18n } from '../i18n';
 import { type Theme, useTheme } from '../theme';
 import type { AccidentRecord, HotspotRecord } from '../types';
 
@@ -18,6 +20,8 @@ const DEGREE_WINDOW = 0.02;
 
 export default function HotspotDetailScreen() {
   const { theme } = useTheme();
+  const { t } = useI18n();
+  const { contentPadding } = useBreakpoint();
   const styles = createStyles(theme);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -41,7 +45,7 @@ export default function HotspotDetailScreen() {
         setAccidents(accidentData);
       } catch (error) {
         console.error(error);
-        Alert.alert('Load failed', 'Unable to load hotspot details.');
+        Alert.alert(t('detail.loadFailedTitle'), t('detail.loadFailedHotspot'));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -51,7 +55,7 @@ export default function HotspotDetailScreen() {
     return () => {
       mounted = false;
     };
-  }, [route.params.hotspotId]);
+  }, [route.params.hotspotId, t]);
 
   const linkedAccidents = useMemo(() => {
     if (!hotspot) return [];
@@ -84,22 +88,23 @@ export default function HotspotDetailScreen() {
     if (!hotspot) return '';
     const counts = hotspot.severity_counts;
     if (counts) {
-      return `Severity mix - Fatal: ${counts.Fatal ?? 0}, Critical: ${counts.Critical ?? 0}, Minor: ${counts.Minor ?? 0}, Damage Only: ${counts['Damage Only'] ?? 0}.`;
+      return t('detail.severityMix', {
+        fatal: counts.Fatal ?? 0,
+        critical: counts.Critical ?? 0,
+        minor: counts.Minor ?? 0,
+        damage: counts['Damage Only'] ?? 0,
+      });
     }
-    if (hotspot.risk_score >= 0.8) {
-      return 'High risk comes from dense and severe incident clusters in this area.';
-    }
-    if (hotspot.risk_score >= 0.5) {
-      return 'Medium risk comes from repeated incident frequency in nearby roads.';
-    }
-    return 'Low risk indicates fewer or less severe linked incidents recently.';
-  }, [hotspot]);
+    if (hotspot.risk_score >= 0.8) return t('detail.riskHigh');
+    if (hotspot.risk_score >= 0.5) return t('detail.riskMedium');
+    return t('detail.riskLow');
+  }, [hotspot, t]);
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <Text style={styles.muted}>Loading hotspot details...</Text>
+          <Text style={styles.muted}>{t('detail.loadingHotspot')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -109,8 +114,8 @@ export default function HotspotDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <Text style={styles.muted}>Hotspot not found.</Text>
-          <Button label="Back" onPress={() => navigation.goBack()} />
+          <Text style={styles.muted}>{t('detail.hotspotNotFound')}</Text>
+          <Button label={t('common.back')} onPress={() => navigation.goBack()} />
         </View>
       </SafeAreaView>
     );
@@ -129,14 +134,14 @@ export default function HotspotDetailScreen() {
         }}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: theme.spacing.lg + insets.bottom },
+          { paddingHorizontal: contentPadding, paddingBottom: theme.spacing.lg + insets.bottom },
         ]}
       >
         <View style={styles.headerWrap}>
           <IslandBar
-            eyebrow="Details"
-            title="Hotspot detail"
-            subtitle="Risk explanation and linked incidents"
+            eyebrow={t('detail.hotspotEyebrow')}
+            title={t('detail.hotspotTitle')}
+            subtitle={t('detail.hotspotSubtitle')}
             mode={isAdmin ? 'admin' : 'public'}
             compact={compactBar}
             isAdmin={isAdmin}
@@ -150,35 +155,38 @@ export default function HotspotDetailScreen() {
           />
         </View>
         <IslandCard style={styles.card}>
-          <Text style={styles.label}>Area ID</Text>
+          <Text style={styles.label}>{t('detail.areaId')}</Text>
           <Text style={styles.value}>{hotspot.area_id}</Text>
-          <Text style={styles.label}>Severity</Text>
+          <Text style={styles.label}>{t('detail.severity')}</Text>
           <Text style={styles.value}>{hotspot.severity_level}</Text>
-          <Text style={styles.label}>Risk score</Text>
+          <Text style={styles.label}>{t('detail.riskScore')}</Text>
           <Text style={styles.value}>{hotspot.risk_score}</Text>
-          <Text style={styles.label}>Center</Text>
+          <Text style={styles.label}>{t('detail.center')}</Text>
           <Text style={styles.value}>
             {hotspot.center_lat.toFixed(5)}, {hotspot.center_lng.toFixed(5)}
           </Text>
-          <Text style={styles.label}>Last updated</Text>
+          <Text style={styles.label}>{t('detail.lastUpdated')}</Text>
           <Text style={styles.value}>{hotspot.last_updated}</Text>
         </IslandCard>
 
         <IslandCard style={styles.card}>
-          <Text style={styles.sectionTitle}>Why this hotspot</Text>
+          <Text style={styles.sectionTitle}>{t('detail.whyHotspot')}</Text>
           <Text style={styles.value}>{explanation}</Text>
           <Text style={styles.value}>
-            Linked incidents in 7d: {hotspot.recent_7d_count ?? trend.in7d} | in 30d: {hotspot.recent_30d_count ?? trend.in30d}
+            {t('detail.linkedTrend', {
+              d7: hotspot.recent_7d_count ?? trend.in7d,
+              d30: hotspot.recent_30d_count ?? trend.in30d,
+            })}
           </Text>
           <Text style={styles.value}>
-            Current total incidents near center: {linkedAccidents.length}
+            {t('detail.linkedTotal', { count: linkedAccidents.length })}
           </Text>
         </IslandCard>
 
         <IslandCard style={styles.card}>
-          <Text style={styles.sectionTitle}>Linked incidents</Text>
+          <Text style={styles.sectionTitle}>{t('detail.linkedIncidents')}</Text>
           {linkedAccidents.length === 0 ? (
-            <Text style={styles.muted}>No linked incidents found in this range.</Text>
+            <Text style={styles.muted}>{t('detail.noLinked')}</Text>
           ) : (
             linkedAccidents.slice(0, 10).map((item) => (
               <View key={item.id ?? item.request_id} style={styles.row}>
@@ -188,7 +196,7 @@ export default function HotspotDetailScreen() {
                 <Text style={styles.muted}>{item.created_at ?? item.timestamp}</Text>
                 {item.id ? (
                   <Button
-                    label="Open incident"
+                    label={t('detail.openIncident')}
                     variant="secondary"
                     onPress={() => navigation.navigate('AccidentDetail', { accidentId: item.id! })}
                   />
@@ -198,7 +206,7 @@ export default function HotspotDetailScreen() {
           )}
         </IslandCard>
 
-        <Button label="Back" variant="secondary" onPress={() => navigation.goBack()} />
+        <Button label={t('common.back')} variant="secondary" onPress={() => navigation.goBack()} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -224,11 +232,6 @@ const createStyles = (theme: Theme) =>
       marginBottom: theme.tokens.spacing[2],
       backgroundColor: theme.tokens.color.background,
       paddingBottom: theme.tokens.spacing[2],
-    },
-    title: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: theme.colors.text,
     },
     card: {
       gap: 6,

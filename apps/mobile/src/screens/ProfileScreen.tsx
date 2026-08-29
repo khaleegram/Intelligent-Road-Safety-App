@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -12,6 +12,8 @@ import Button from '../components/Button';
 import Avatar from '../components/system/Avatar';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { auth } from '../services/firebase';
+import { fetchAccidents } from '../services/firestore';
+import { fetchLocalAlerts } from '../services/localAlerts';
 import { useAdminAccess } from '../hooks/useAdminAccess';
 import { useI18n } from '../i18n';
 import { type Theme, useTheme } from '../theme';
@@ -26,10 +28,27 @@ export default function ProfileScreen() {
 
   const [compactBar, setCompactBar] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [reportCount, setReportCount] = useState(0);
+  const [alertCount, setAlertCount] = useState(0);
 
   const mode = route.params?.mode ?? 'public';
   const email = user?.email ?? 'unknown';
   const initials = email.slice(0, 2).toUpperCase();
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([fetchAccidents().catch(() => []), fetchLocalAlerts()])
+      .then(([accidents, alerts]) => {
+        if (!active) return;
+        const uid = user?.uid;
+        setReportCount(uid ? accidents.filter((a) => a.reporter_uid === uid).length : 0);
+        setAlertCount(alerts.length);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [user?.uid]);
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -90,6 +109,37 @@ export default function ProfileScreen() {
         </IslandCard>
 
         <IslandCard style={styles.card}>
+          <Text style={styles.email}>{t('profile.statsTitle')}</Text>
+          <Text style={styles.meta}>{t('profile.statsReports', { count: reportCount })}</Text>
+          <Text style={styles.meta}>{t('profile.statsAlerts', { count: alertCount })}</Text>
+        </IslandCard>
+
+        <IslandCard style={styles.card}>
+          <Button
+            label={t('profile.openSos')}
+            variant="secondary"
+            onPress={() => navigation.navigate('Sos')}
+          />
+          <Button
+            label={t('profile.openEducation')}
+            variant="secondary"
+            onPress={() => navigation.navigate('Education')}
+          />
+          <Button
+            label={t('profile.openMedication')}
+            variant="secondary"
+            onPress={() => navigation.navigate('Medication')}
+          />
+          <Button
+            label={t('profile.openFeedback')}
+            variant="secondary"
+            onPress={() => navigation.navigate('Feedback')}
+          />
+          <Button
+            label={t('profile.openBehaviour')}
+            variant="secondary"
+            onPress={() => navigation.navigate('Behaviour')}
+          />
           <Button
             label={t('common.settings')}
             variant="secondary"
