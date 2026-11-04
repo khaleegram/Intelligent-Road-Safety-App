@@ -18,6 +18,7 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { auth } from '../services/firebase';
 import { getAlertPreferences, setAlertPreferences } from '../services/alertPreferences';
+import { getExpoPushToken } from '../services/notifications';
 import { offlineQueue } from '../services/offlineQueue';
 import { storage } from '../services/storage';
 import { isUserAdmin, upsertUserProfile } from '../services/userProfile';
@@ -37,6 +38,7 @@ export default function SettingsScreen() {
   const [compactBar, setCompactBar] = useState(false);
   const [alertsEnabled, setAlertsEnabled] = useState(true);
   const [alertRadius, setAlertRadius] = useState(200);
+  const [pushToken, setPushToken] = useState<string | null>(null);
 
   useEffect(() => {
     offlineQueue.getAll().then((items) => setQueuedCount(items.length));
@@ -44,6 +46,9 @@ export default function SettingsScreen() {
       setAlertsEnabled(prefs.enabled);
       setAlertRadius(prefs.radiusMeters);
     });
+    getExpoPushToken()
+      .then(setPushToken)
+      .catch(() => setPushToken(null));
   }, []);
 
   useEffect(() => {
@@ -341,6 +346,13 @@ export default function SettingsScreen() {
               onPress={() => navigation.navigate('Admin', undefined)}
               disabled={!isAdmin}
             />
+            <View style={styles.divider} />
+            <View style={styles.tokenBlock}>
+              <Text style={styles.tokenLabel}>{t('settings.pushToken')}</Text>
+              <Text style={styles.tokenValue} selectable>
+                {pushToken ?? t('settings.pushTokenUnavailable')}
+              </Text>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -444,6 +456,20 @@ const createStyles = (theme: Theme) =>
     groupBlock: {
       paddingVertical: theme.space[3],
       gap: theme.space[2],
+    },
+    tokenBlock: {
+      paddingVertical: theme.space[3],
+      gap: 4,
+    },
+    tokenLabel: {
+      fontSize: theme.type.label.fontSize,
+      fontWeight: theme.type.label.fontWeight,
+      color: theme.color.textSecondary,
+    },
+    tokenValue: {
+      fontSize: theme.type.caption.fontSize,
+      color: theme.color.textPrimary,
+      lineHeight: 18,
     },
     accountRow: {
       flexDirection: 'row',

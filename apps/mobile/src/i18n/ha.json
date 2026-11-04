@@ -234,6 +234,8 @@
   "settings.queuedReports": "Rahotannin da ke layi",
   "settings.waitingToSync": "{count} suna jiran daidaitawa",
   "settings.syncNow": "Daidaita yanzu",
+  "settings.pushToken": "Tọkanin turawa",
+  "settings.pushTokenUnavailable": "Ba a yi rajista ba. Sake gina manhajar bayan an saita takardun turawa.",
   "settings.about": "Game da",
   "settings.miniTitle": "SafeDrive NG",
   "settings.miniDesc": "Tsaro na hanya mai haɗin gwiwa don juriya a birane a Najeriya.",

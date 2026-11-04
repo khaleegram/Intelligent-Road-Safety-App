@@ -234,6 +234,8 @@
   "settings.queuedReports": "Akọkọ nọ n'ahịrị",
   "settings.waitingToSync": "{count} na-eche imekọrịta",
   "settings.syncNow": "Meekọrịta ugbu a",
+  "settings.pushToken": "Token mbugharị",
+  "settings.pushTokenUnavailable": "Edebanyeghị aha. Wugharịa ngwa ahụ mgbe edoziri nzere mbugharị.",
   "settings.about": "Gbasara",
   "settings.miniTitle": "SafeDrive NG",
   "settings.miniDesc": "Nchekwa ụzọ jikọtara maka ididi obodo na Naịjirịa.",

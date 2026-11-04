@@ -234,6 +234,8 @@
   "settings.queuedReports": "Queued reports",
   "settings.waitingToSync": "{count} waiting to sync",
   "settings.syncNow": "Sync now",
+  "settings.pushToken": "Push token",
+  "settings.pushTokenUnavailable": "Not registered. Rebuild the app once push credentials are configured.",
   "settings.about": "About",
   "settings.miniTitle": "SafeDrive NG",
   "settings.miniDesc": "Integrated road safety for urban resilience in Nigeria.",

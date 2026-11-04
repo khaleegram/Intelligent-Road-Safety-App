@@ -32,10 +32,19 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         },
       ],
     ],
+    android: {
+      ...config.android,
+      package: config.android?.package ?? 'com.khaleefah.mobile',
+      googleServicesFile:
+        process.env.GOOGLE_SERVICES_JSON ?? './android/app/google-services.json',
+    },
     extra: {
       ...config.extra,
       eas: {
-        projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? '',
+        projectId:
+          process.env.EXPO_PUBLIC_EAS_PROJECT_ID ||
+          (config.extra?.eas as { projectId?: string } | undefined)?.projectId ||
+          '',
       },
       mapboxToken: process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '',
       adminRoleEndpoint: process.env.EXPO_PUBLIC_ADMIN_ROLE_ENDPOINT ?? '',

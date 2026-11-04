@@ -93,7 +93,11 @@ export async function getExpoPushToken(): Promise<string | null> {
       return null;
     }
     const result = await notificationsModule.getExpoPushTokenAsync({ projectId });
-    return typeof result?.data === 'string' ? result.data : null;
+    const token = typeof result?.data === 'string' ? result.data : null;
+    if (token) {
+      console.log('[push] Expo push token:', token);
+    }
+    return token;
   } catch (error) {
     console.warn('Expo push token unavailable', error);
     return null;

@@ -234,6 +234,8 @@
   "settings.queuedReports": "Àwọn jíbọ̀ tí ó wà ní ìlà",
   "settings.waitingToSync": "{count} ó ń dúró fún àmúṣiṣẹ́pọ̀",
   "settings.syncNow": "Ṣe àmúṣiṣẹ́pọ̀ báyìí",
+  "settings.pushToken": "Tọ́kẹ̀nì títì",
+  "settings.pushTokenUnavailable": "A kò forúkọ rẹ̀. Tún ohun èlò náà kọ́ lẹ́yìn tí a bá ṣètò ẹ̀rí títì.",
   "settings.about": "Nípa",
   "settings.miniTitle": "SafeDrive NG",
   "settings.miniDesc": "Ààbò ọ̀nà tó sopọ̀ fún agbára ìlú ní Nàìjíríà.",

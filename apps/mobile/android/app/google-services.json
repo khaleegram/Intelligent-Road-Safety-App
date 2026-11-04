@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1055681984761",
+    "project_id": "intelligent-road-safety",
+    "storage_bucket": "intelligent-road-safety.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1055681984761:android:d01c00b731b34792214a28",
+        "android_client_info": {
+          "package_name": "com.khaleefah.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBLATWQHowLLVHrkx8iuR2RYLtBqwZUgqQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
