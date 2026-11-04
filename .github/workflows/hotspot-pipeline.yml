@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install pipeline deps
         working-directory: backend/pipeline
@@ -31,11 +31,11 @@ jobs:
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
           FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
-          HOTSPOT_THRESHOLD: '3'
-          HOTSPOT_GRID: '0.01'
+          HOTSPOT_THRESHOLD: '2'
+          HOTSPOT_GRID: '0.03'
           HOTSPOT_TIME_BUCKET: 'all'
           ALERT_SPIKE_THRESHOLD: '5'
-        run: node compute-hotspots.mjs --threshold 3 --grid 0.01
+        run: node compute-hotspots.mjs --threshold 2 --grid 0.03
 
       - name: Publish advisory risk predictions
         working-directory: backend/ml

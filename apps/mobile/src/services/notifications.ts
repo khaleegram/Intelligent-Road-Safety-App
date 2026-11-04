@@ -86,9 +86,13 @@ export async function getExpoPushToken(): Promise<string | null> {
     const projectId =
       Constants.easConfig?.projectId ??
       Constants.expoConfig?.extra?.eas?.projectId;
-    const result = projectId
-      ? await notificationsModule.getExpoPushTokenAsync({ projectId })
-      : await notificationsModule.getExpoPushTokenAsync();
+    if (!projectId) {
+      console.warn(
+        'Push token unavailable: set EXPO_PUBLIC_EAS_PROJECT_ID so expo-notifications can request a token.'
+      );
+      return null;
+    }
+    const result = await notificationsModule.getExpoPushTokenAsync({ projectId });
     return typeof result?.data === 'string' ? result.data : null;
   } catch (error) {
     console.warn('Expo push token unavailable', error);

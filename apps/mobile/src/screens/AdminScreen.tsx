@@ -13,14 +13,17 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import Button from '../components/Button';
-import GradientChip from '../components/GradientChip';
+import FactRow from '../components/FactRow';
 import IslandBar from '../components/IslandBar';
-import IslandCard from '../components/IslandCard';
+import OptionGrid from '../components/OptionGrid';
+import SegmentedControl from '../components/SegmentedControl';
+import StatTile from '../components/StatTile';
 import { missingFirebaseKeys } from '../config/env';
 import {
   fetchAccidents,
   fetchAdminAlerts,
   fetchHotspots,
+  fetchSemInsights,
   fetchUsers,
 } from '../services/firestore';
 import { fetchRiskPredictions } from '../services/riskPredictions';
@@ -36,6 +39,7 @@ import type {
   AdminAlert,
   HotspotRecord,
   RiskPrediction,
+  SemInsight,
   UserProfile,
 } from '../types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -60,6 +64,7 @@ export default function AdminScreen({
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [alerts, setAlerts] = useState<AdminAlert[]>([]);
   const [riskMeta, setRiskMeta] = useState<RiskPrediction | null>(null);
+  const [semInsight, setSemInsight] = useState<SemInsight | null>(null);
   const [loading, setLoading] = useState(false);
   const [savingRoleUid, setSavingRoleUid] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -74,18 +79,21 @@ export default function AdminScreen({
 
   const load = async () => {
     setLoading(true);
-    const [accidentData, hotspotData, userData, alertData, riskData] = await Promise.all([
-      fetchAccidents(),
-      fetchHotspots(),
-      fetchUsers(),
-      fetchAdminAlerts(),
-      fetchRiskPredictions().catch(() => []),
-    ]);
+    const [accidentData, hotspotData, userData, alertData, riskData, semData] =
+      await Promise.all([
+        fetchAccidents(),
+        fetchHotspots(),
+        fetchUsers(),
+        fetchAdminAlerts(),
+        fetchRiskPredictions().catch(() => []),
+        fetchSemInsights().catch(() => null),
+      ]);
     setAccidents(accidentData);
     setHotspots(hotspotData);
     setUsers(userData);
     setAlerts(alertData);
     setRiskMeta(riskData[0] ?? null);
+    setSemInsight(semData);
     setLastRefreshed(new Date());
     setLoading(false);
   };
@@ -126,6 +134,8 @@ export default function AdminScreen({
     return created >= Date.now() - 24 * 60 * 60 * 1000;
   }).length;
   const latestAlert = alerts[0];
+  const formatMetric = (value?: number) =>
+    typeof value === 'number' ? value.toFixed(2) : t('common.none');
 
   const exportReportsCsv = async () => {
     if (filteredAccidents.length === 0) {
@@ -200,14 +210,14 @@ export default function AdminScreen({
         stickyHeaderIndices={[0]}
         scrollEventThrottle={16}
         onScroll={(event) => {
-          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.space[2];
           if (shouldCompact !== compactBar) {
             setCompactBar(shouldCompact);
           }
         }}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: theme.spacing.lg + insets.bottom },
+          { paddingBottom: theme.space[6] + insets.bottom },
         ]}
       >
         <View style={styles.headerWrap}>
@@ -240,40 +250,32 @@ export default function AdminScreen({
           <View style={styles.spikeBanner}>
             <Text style={styles.spikeTitle}>{t('admin.spikeAlert')}</Text>
             <Text style={styles.spikeText}>
-              {recent24hCount} reports were submitted in the last 24 hours.
+              {t('admin.spikeText', { count: recent24hCount })}
             </Text>
             <View style={styles.spikeActions}>
-              <Button label="Review 24h reports" variant="secondary" onPress={inspectSpike} />
-              <Button label="Export 24h CSV" variant="secondary" onPress={exportSpike24hCsv} />
+              <Button label={t('admin.review24h')} variant="secondary" onPress={inspectSpike} />
+              <Button
+                label={t('admin.export24h')}
+                variant="secondary"
+                onPress={exportSpike24hCsv}
+              />
             </View>
           </View>
         ) : null}
-        {latestAlert ? (
-          <View style={styles.alertCard}>
-            <Text style={styles.sectionTitle}>Latest admin alert</Text>
-            <Text style={styles.listTitle}>{latestAlert.message}</Text>
-            <Text style={styles.listMeta}>{latestAlert.created_at}</Text>
-            {latestAlert.type === 'spike' ? (
-              <Button label={t('admin.investigateSpike')} variant="secondary" onPress={inspectSpike} />
-            ) : null}
-          </View>
-        ) : null}
-
-        <IslandCard style={styles.card}>
-          <Text style={styles.sectionTitle}>{t('admin.overview')}</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionHeading}>{t('admin.overview')}</Text>
           <View style={styles.statRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{accidents.length}</Text>
-              <Text style={styles.statLabel}>{t('admin.accidents')}</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{verifiedCount}</Text>
-              <Text style={styles.statLabel}>{t('admin.verified')}</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{hotspots.length}</Text>
-              <Text style={styles.statLabel}>{t('admin.hotspots')}</Text>
-            </View>
+            <StatTile label={t('admin.accidents')} value={String(accidents.length)} />
+            <StatTile
+              label={t('admin.verified')}
+              value={String(verifiedCount)}
+              tone="success"
+            />
+            <StatTile
+              label={t('admin.hotspots')}
+              value={String(hotspots.length)}
+              tone="warning"
+            />
           </View>
           <Text style={styles.metaText}>
             {t('admin.lastRefresh', {
@@ -311,60 +313,87 @@ export default function AdminScreen({
               onPress={() => navigation.navigate('ResearchData')}
             />
           ) : null}
-        </IslandCard>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionHeading}>{t('admin.researchInsights')}</Text>
+          <Text style={styles.metaText}>{t('admin.researchInsightsNote')}</Text>
+          {semInsight ? (
+            <>
+              <Text style={styles.sectionTitle}>{t('admin.researchFitLabel')}</Text>
+              <Text style={styles.metaText}>
+                {t('admin.semModelVersion', {
+                  value: semInsight.model_version ?? t('common.none'),
+                })}
+              </Text>
+              <FactRow label="CFI" value={formatMetric(semInsight.fit?.cfi)} />
+              <FactRow label="TLI" value={formatMetric(semInsight.fit?.tli)} />
+              <FactRow label="RMSEA" value={formatMetric(semInsight.fit?.rmsea)} />
+              <FactRow label="SRMR" value={formatMetric(semInsight.fit?.srmr)} />
+              {semInsight.policy_recommendations?.length ? (
+                <>
+                  <Text style={styles.sectionTitle}>{t('admin.semRecommendations')}</Text>
+                  {semInsight.policy_recommendations.map((recommendation) => (
+                    <Text key={recommendation} style={styles.metaText}>
+                      • {recommendation}
+                    </Text>
+                  ))}
+                </>
+              ) : null}
+            </>
+          ) : (
+            <Text style={styles.emptyText}>{t('admin.semInsightsEmpty')}</Text>
+          )}
+        </View>
 
         {showTabs ? (
-          <View style={styles.tabBar}>
-            <GradientChip
-              style={styles.tabItem}
-              active={activeTab === 'hotspots'}
-              label={t('nav.hotspots')}
-              onPress={() => setActiveTab('hotspots')}
-            />
-            <GradientChip
-              style={styles.tabItem}
-              active={activeTab === 'reports'}
-              label={t('nav.reports')}
-              onPress={() => setActiveTab('reports')}
-            />
-            <GradientChip
-              style={styles.tabItem}
-              active={activeTab === 'users'}
-              label={t('nav.users')}
-              onPress={() => setActiveTab('users')}
-            />
-          </View>
+          <SegmentedControl
+            accessibilityLabel={t('admin.overview')}
+            value={activeTab}
+            onChange={(value) => setActiveTab(value as typeof activeTab)}
+            options={[
+              { value: 'hotspots', label: t('nav.hotspots') },
+              { value: 'reports', label: t('nav.reports') },
+              { value: 'users', label: t('nav.users') },
+            ]}
+          />
         ) : null}
 
         {activeTab === 'reports' ? (
-          <IslandCard style={styles.card}>
-            <Text style={styles.sectionTitle}>{t('admin.recentReports')}</Text>
-            <View style={styles.filterRow}>
-              {(['All', 'Fatal', 'Critical', 'Minor', 'Damage Only'] as const).map((value) => (
-                <GradientChip
-                  key={value}
-                  style={styles.chip}
-                  active={severityFilter === value}
-                  label={value}
-                  onPress={() => setSeverityFilter(value)}
-                />
-              ))}
-            </View>
-            <View style={styles.filterRow}>
-              {(['All', 1, 7, 30] as const).map((value) => (
-                <GradientChip
-                  key={String(value)}
-                  style={styles.chip}
-                  active={daysFilter === value}
-                  label={value === 'All' ? 'All days' : value === 1 ? '24h' : `${value}d`}
-                  onPress={() => setDaysFilter(value)}
-                />
-              ))}
-            </View>
+          <View style={styles.section}>
+            <Text style={styles.sectionHeading}>{t('admin.recentReports')}</Text>
+            <OptionGrid
+              columns={3}
+              accessibilityLabel={t('admin.recentReports')}
+              value={severityFilter}
+              onChange={(value) => setSeverityFilter(value as typeof severityFilter)}
+              options={[
+                { value: 'All', label: t('common.all') },
+                { value: 'Fatal', label: t('options.severity.Fatal') },
+                { value: 'Critical', label: t('options.severity.Critical') },
+                { value: 'Minor', label: t('options.severity.Minor') },
+                { value: 'Damage Only', label: t('options.severity.Damage Only') },
+              ]}
+            />
+            <SegmentedControl
+              accessibilityLabel={t('admin.recentReports')}
+              value={String(daysFilter)}
+              onChange={(value) =>
+                setDaysFilter(
+                  value === 'All' ? 'All' : (Number(value) as 1 | 7 | 30)
+                )
+              }
+              options={[
+                { value: 'All', label: t('common.all') },
+                { value: '1', label: '24h' },
+                { value: '7', label: '7d' },
+                { value: '30', label: '30d' },
+              ]}
+            />
             <TextInput
               style={styles.filterInput}
               placeholder={t('search.placeholder')}
-              placeholderTextColor={theme.tokens.color.textSecondary}
+              placeholderTextColor={theme.color.textSecondary}
               value={regionFilter}
               onChangeText={setRegionFilter}
             />
@@ -399,12 +428,12 @@ export default function AdminScreen({
                 </Pressable>
               ))
             )}
-          </IslandCard>
+          </View>
         ) : null}
 
         {activeTab === 'hotspots' ? (
-          <IslandCard style={styles.card}>
-            <Text style={styles.sectionTitle}>{t('admin.recentHotspots')}</Text>
+          <View style={styles.section}>
+            <Text style={styles.sectionHeading}>{t('admin.recentHotspots')}</Text>
             {!isAdmin ? (
               <Text style={styles.emptyText}>{t('common.adminRequired')}</Text>
             ) : latestHotspots.length === 0 ? (
@@ -429,12 +458,12 @@ export default function AdminScreen({
                 </Pressable>
               ))
             )}
-          </IslandCard>
+          </View>
         ) : null}
 
         {activeTab === 'users' ? (
-          <IslandCard style={styles.card}>
-            <Text style={styles.sectionTitle}>{t('admin.users')}</Text>
+          <View style={styles.section}>
+            <Text style={styles.sectionHeading}>{t('admin.users')}</Text>
             {!isAdmin ? (
               <Text style={styles.emptyText}>{t('common.adminRequired')}</Text>
             ) : latestUsers.length === 0 ? (
@@ -454,7 +483,9 @@ export default function AdminScreen({
                     })}
                   </Text>
                   <Button
-                    label={item.is_admin ? 'Revoke admin' : 'Grant admin'}
+                    label={
+                      item.is_admin ? t('admin.revokeAdmin') : t('admin.grantAdmin')
+                    }
                     variant="secondary"
                     onPress={() => toggleRole(item)}
                     disabled={!item.id || savingRoleUid === item.id}
@@ -462,7 +493,7 @@ export default function AdminScreen({
                 </View>
               ))
             )}
-          </IslandCard>
+          </View>
         ) : null}
       </ScrollView>
     </SafeAreaView>
@@ -473,78 +504,68 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.bg,
+      backgroundColor: theme.color.background,
     },
     content: {
-      padding: theme.spacing.lg,
-      gap: theme.spacing.md,
+      padding: theme.space[6],
+      gap: theme.space[4],
     },
     headerWrap: {
-      marginBottom: theme.tokens.spacing[2],
-      backgroundColor: theme.tokens.color.background,
-      paddingBottom: theme.tokens.spacing[2],
+      marginBottom: theme.space[2],
+      backgroundColor: theme.color.background,
+      paddingBottom: theme.space[2],
     },
     banner: {
-      marginTop: theme.spacing.xs,
-      padding: theme.spacing.md,
+      marginTop: theme.space[2],
+      padding: theme.space[4],
       borderRadius: theme.radius.sm,
-      backgroundColor: theme.tokens.color.surfaceElevated,
+      backgroundColor: theme.color.surfaceElevated,
       borderWidth: 1,
-      borderColor: theme.tokens.color.border,
+      borderColor: theme.color.border,
     },
     bannerTitle: {
-      fontSize: theme.tokens.typography.fontSize.sm,
+      fontSize: theme.type.body.fontSize,
       fontWeight: '700',
-      color: theme.tokens.color.textPrimary,
+      color: theme.color.textPrimary,
     },
     bannerText: {
       marginTop: 4,
-      fontSize: theme.tokens.typography.fontSize.xs,
-      color: theme.tokens.color.textSecondary,
+      fontSize: theme.type.caption.fontSize,
+      color: theme.color.textSecondary,
     },
     card: {
-      gap: theme.spacing.md,
+      gap: theme.space[4],
     },
     tabBar: {
       flexDirection: 'row',
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
     },
     tabItem: {
       flex: 1,
       minHeight: 40,
     },
     sectionTitle: {
-      fontSize: 12,
+      fontSize: theme.type.label.fontSize,
+      fontWeight: theme.type.label.fontWeight,
+      color: theme.color.textSecondary,
+    },
+    section: {
+      gap: theme.space[2],
+    },
+    sectionHeading: {
+      fontSize: 20,
+      lineHeight: 26,
       fontWeight: '700',
-      color: theme.colors.text,
-      textTransform: 'uppercase',
-      letterSpacing: 0.4,
+      letterSpacing: -0.2,
+      color: theme.color.textPrimary,
     },
     statRow: {
       flexDirection: 'row',
-      gap: theme.spacing.sm,
-    },
-    statBox: {
-      flex: 1,
-      padding: theme.spacing.md,
-      borderRadius: theme.radius.sm,
-      backgroundColor: theme.tokens.color.surfaceElevated,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      alignItems: 'center',
-    },
-    statValue: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: theme.colors.text,
-    },
-    statLabel: {
-      fontSize: 11,
-      color: theme.colors.textMuted,
+      gap: theme.space[2],
     },
     metaText: {
       fontSize: 11,
-      color: theme.colors.textMuted,
+      color: theme.color.textSecondary,
     },
     filterRow: {
       flexDirection: 'row',
@@ -556,73 +577,73 @@ const createStyles = (theme: Theme) =>
     },
     filterInput: {
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: theme.color.border,
       borderRadius: theme.radius.sm,
       minHeight: 44,
       paddingHorizontal: 12,
       paddingVertical: 10,
-      fontSize: theme.tokens.typography.fontSize.sm,
-      color: theme.colors.text,
-      backgroundColor: theme.tokens.color.surfaceElevated,
+      fontSize: theme.type.body.fontSize,
+      color: theme.color.textPrimary,
+      backgroundColor: theme.color.surfaceElevated,
     },
     listRow: {
-      marginTop: theme.tokens.spacing[2],
+      marginTop: theme.space[2],
       paddingVertical: 10,
       paddingHorizontal: 10,
       borderWidth: 1,
-      borderColor: theme.tokens.color.border,
-      borderRadius: theme.tokens.radius.md,
-      backgroundColor: theme.tokens.color.surfaceElevated,
+      borderColor: theme.color.border,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.color.surfaceElevated,
       gap: 5,
     },
     listTitle: {
       fontSize: 12,
       fontWeight: '600',
-      color: theme.colors.text,
+      color: theme.color.textPrimary,
     },
     listSubtitle: {
       fontSize: 11,
-      color: theme.colors.textMuted,
+      color: theme.color.textSecondary,
       marginTop: 2,
     },
     listMeta: {
       fontSize: 10,
-      color: theme.colors.textSoft,
+      color: theme.color.textSecondary,
       marginTop: 2,
     },
     emptyText: {
       fontSize: 12,
-      color: theme.colors.textMuted,
+      color: theme.color.textSecondary,
     },
     spikeBanner: {
-      marginTop: theme.spacing.xs,
-      padding: theme.spacing.sm,
+      marginTop: theme.space[2],
+      padding: theme.space[3],
       borderWidth: 1,
-      borderColor: theme.tokens.color.warning,
+      borderColor: theme.color.warning,
       borderRadius: theme.radius.sm,
-      backgroundColor: theme.tokens.color.surfaceElevated,
+      backgroundColor: theme.color.surfaceElevated,
       gap: 4,
     },
     spikeTitle: {
       fontSize: 12,
       fontWeight: '700',
-      color: theme.tokens.color.warning,
+      color: theme.color.warning,
     },
     spikeText: {
       fontSize: 11,
-      color: theme.tokens.color.warning,
+      color: theme.color.warning,
     },
     spikeActions: {
       marginTop: 6,
       gap: 6,
     },
     alertCard: {
-      marginTop: theme.spacing.xs,
-      padding: theme.spacing.sm,
+      marginTop: theme.space[2],
+      padding: theme.space[3],
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: theme.color.border,
       borderRadius: theme.radius.md,
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.color.surface,
       gap: 4,
     },
   });

@@ -7,6 +7,6 @@
     "notify:push": "node notify-push.mjs"
   },
   "dependencies": {
-    "firebase-admin": "^13.0.2"
+    "firebase-admin": "^14.5.0"
   }
 }

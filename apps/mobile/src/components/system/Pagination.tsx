@@ -41,11 +41,11 @@ const createStyles = (theme: Theme) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
     },
     label: {
-      color: theme.tokens.color.textPrimary,
-      fontSize: theme.tokens.typography.fontSize.sm,
-      fontWeight: theme.tokens.typography.fontWeight.medium,
+      color: theme.color.textPrimary,
+      fontSize: theme.type.body.fontSize,
+      fontWeight: '500',
     },
   });

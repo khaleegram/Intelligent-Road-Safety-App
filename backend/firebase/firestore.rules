@@ -59,6 +59,24 @@ service cloud.firestore {
         data.reporter_uid == request.auth.uid;
     }
 
+    function isValidAccidentFeatures(data, accidentId) {
+      return isSignedIn() &&
+        data.keys().hasAll(['request_id', 'reporter_uid', 'created_at']) &&
+        data.keys().hasOnly([
+          'request_id',
+          'reporter_uid',
+          'created_at',
+          'lighting_condition',
+          'road_surface',
+          'traffic_density',
+          'suspected_cause'
+        ]) &&
+        data.request_id is string &&
+        data.request_id == accidentId &&
+        data.reporter_uid is string &&
+        data.reporter_uid == request.auth.uid;
+    }
+
     match /accidents/{accidentId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && isValidAccident(request.resource.data, accidentId);
@@ -69,6 +87,13 @@ service cloud.firestore {
           'verified_at',
           'notes'
         ]);
+      allow delete: if false;
+    }
+
+    match /accident_features/{accidentId} {
+      allow read: if isSignedIn();
+      allow create: if isValidAccidentFeatures(request.resource.data, accidentId);
+      allow update: if isAdmin();
       allow delete: if false;
     }
 
@@ -83,6 +108,11 @@ service cloud.firestore {
     }
 
     match /admin_alerts/{alertId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /sem_insights/{insightId} {
       allow read: if isAdmin();
       allow write: if false;
     }

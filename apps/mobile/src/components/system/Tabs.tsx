@@ -31,8 +31,8 @@ export default function Tabs({ items, activeKey, onChange }: TabsProps) {
               styles.tab,
               active
                 ? {
-                    backgroundColor: theme.tokens.color.primary,
-                    borderColor: theme.tokens.color.primary,
+                    backgroundColor: theme.color.primary,
+                    borderColor: theme.color.primary,
                   }
                 : null,
             ]}
@@ -51,25 +51,25 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     row: {
       flexDirection: 'row',
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
     },
     tab: {
       minHeight: 44,
-      paddingHorizontal: theme.tokens.spacing[3],
-      borderRadius: theme.tokens.radius.full,
+      paddingHorizontal: theme.space[3],
+      borderRadius: theme.radius.full,
       borderWidth: 1,
-      borderColor: theme.tokens.color.border,
-      backgroundColor: theme.tokens.color.surface,
+      borderColor: theme.color.border,
+      backgroundColor: theme.color.surface,
       justifyContent: 'center',
       alignItems: 'center',
       flexGrow: 1,
     },
     tabText: {
-      color: theme.tokens.color.textPrimary,
-      fontSize: theme.tokens.typography.fontSize.xs,
-      fontWeight: theme.tokens.typography.fontWeight.medium,
+      color: theme.color.textPrimary,
+      fontSize: theme.type.caption.fontSize,
+      fontWeight: '500',
     },
     tabTextActive: {
-      color: theme.tokens.color.textInverse,
+      color: theme.color.textInverse,
     },
   });

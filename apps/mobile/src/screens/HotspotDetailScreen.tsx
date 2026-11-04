@@ -1,13 +1,14 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 
-import Button from '../components/Button';
+import FactRow from '../components/FactRow';
 import IslandBar from '../components/IslandBar';
-import IslandCard from '../components/IslandCard';
+import Button from '../components/Button';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { fetchAccidents, fetchHotspotById } from '../services/firestore';
 import { useAdminAccess } from '../hooks/useAdminAccess';
@@ -127,14 +128,14 @@ export default function HotspotDetailScreen() {
         stickyHeaderIndices={[0]}
         scrollEventThrottle={16}
         onScroll={(event) => {
-          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.space[2];
           if (shouldCompact !== compactBar) {
             setCompactBar(shouldCompact);
           }
         }}
         contentContainerStyle={[
           styles.content,
-          { paddingHorizontal: contentPadding, paddingBottom: theme.spacing.lg + insets.bottom },
+          { paddingHorizontal: contentPadding, paddingBottom: theme.space[6] + insets.bottom },
         ]}
       >
         <View style={styles.headerWrap}>
@@ -145,6 +146,7 @@ export default function HotspotDetailScreen() {
             mode={isAdmin ? 'admin' : 'public'}
             compact={compactBar}
             isAdmin={isAdmin}
+            onBack={() => navigation.goBack()}
             onToggle={(next) => {
               if (next === 'public') {
                 navigation.navigate('Public', { screen: 'Map' });
@@ -154,59 +156,87 @@ export default function HotspotDetailScreen() {
             }}
           />
         </View>
-        <IslandCard style={styles.card}>
-          <Text style={styles.label}>{t('detail.areaId')}</Text>
-          <Text style={styles.value}>{hotspot.area_id}</Text>
-          <Text style={styles.label}>{t('detail.severity')}</Text>
-          <Text style={styles.value}>{hotspot.severity_level}</Text>
-          <Text style={styles.label}>{t('detail.riskScore')}</Text>
-          <Text style={styles.value}>{hotspot.risk_score}</Text>
-          <Text style={styles.label}>{t('detail.center')}</Text>
-          <Text style={styles.value}>
-            {hotspot.center_lat.toFixed(5)}, {hotspot.center_lng.toFixed(5)}
+        <View style={styles.hero}>
+          <Text style={styles.heroValue}>{hotspot.risk_score}</Text>
+          <Text style={styles.heroLabel}>{t('detail.riskScore')}</Text>
+          <Text style={styles.heroMeta}>
+            {hotspot.severity_level} · {hotspot.accident_count}
           </Text>
-          <Text style={styles.label}>{t('detail.lastUpdated')}</Text>
-          <Text style={styles.value}>{hotspot.last_updated}</Text>
-        </IslandCard>
+        </View>
 
-        <IslandCard style={styles.card}>
-          <Text style={styles.sectionTitle}>{t('detail.whyHotspot')}</Text>
-          <Text style={styles.value}>{explanation}</Text>
-          <Text style={styles.value}>
-            {t('detail.linkedTrend', {
-              d7: hotspot.recent_7d_count ?? trend.in7d,
-              d30: hotspot.recent_30d_count ?? trend.in30d,
-            })}
-          </Text>
-          <Text style={styles.value}>
-            {t('detail.linkedTotal', { count: linkedAccidents.length })}
-          </Text>
-        </IslandCard>
+        <View style={styles.group}>
+          <FactRow label={t('detail.areaId')} value={hotspot.area_id} />
+          <View style={styles.divider} />
+          <FactRow
+            label={t('detail.center')}
+            value={`${hotspot.center_lat.toFixed(5)}, ${hotspot.center_lng.toFixed(5)}`}
+          />
+          <View style={styles.divider} />
+          <FactRow label={t('detail.lastUpdated')} value={hotspot.last_updated} />
+        </View>
 
-        <IslandCard style={styles.card}>
-          <Text style={styles.sectionTitle}>{t('detail.linkedIncidents')}</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionHeading}>{t('detail.whyHotspot')}</Text>
+          <View style={styles.groupBlock}>
+            <Text style={styles.bodyText}>{explanation}</Text>
+            <Text style={styles.metaText}>
+              {t('detail.linkedTrend', {
+                d7: hotspot.recent_7d_count ?? trend.in7d,
+                d30: hotspot.recent_30d_count ?? trend.in30d,
+              })}
+            </Text>
+            <Text style={styles.metaText}>
+              {t('detail.linkedTotal', { count: linkedAccidents.length })}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionHeading}>{t('detail.linkedIncidents')}</Text>
           {linkedAccidents.length === 0 ? (
             <Text style={styles.muted}>{t('detail.noLinked')}</Text>
           ) : (
-            linkedAccidents.slice(0, 10).map((item) => (
-              <View key={item.id ?? item.request_id} style={styles.row}>
-                <Text style={styles.value}>
-                  {item.severity} - {item.road_type}
-                </Text>
-                <Text style={styles.muted}>{item.created_at ?? item.timestamp}</Text>
-                {item.id ? (
-                  <Button
-                    label={t('detail.openIncident')}
-                    variant="secondary"
-                    onPress={() => navigation.navigate('AccidentDetail', { accidentId: item.id! })}
-                  />
-                ) : null}
-              </View>
-            ))
+            <View style={styles.group}>
+              {linkedAccidents.slice(0, 10).map((item, index) => (
+                <View key={item.id ?? item.request_id}>
+                  {index > 0 ? <View style={styles.divider} /> : null}
+                  <Pressable
+                    accessibilityRole={item.id ? 'button' : undefined}
+                    accessibilityLabel={
+                      item.id ? `${item.severity}, ${item.road_type}` : undefined
+                    }
+                    disabled={!item.id}
+                    onPress={() => {
+                      if (item.id) {
+                        navigation.navigate('AccidentDetail', { accidentId: item.id });
+                      }
+                    }}
+                    style={({ pressed }) => [
+                      styles.incidentRow,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <View style={styles.incidentBody}>
+                      <Text style={styles.incidentTitle}>
+                        {item.severity} · {item.road_type}
+                      </Text>
+                      <Text style={styles.metaText}>
+                        {item.created_at ?? item.timestamp}
+                      </Text>
+                    </View>
+                    {item.id ? (
+                      <Ionicons
+                        name="chevron-forward"
+                        size={18}
+                        color={theme.color.textSecondary}
+                      />
+                    ) : null}
+                  </Pressable>
+                </View>
+              ))}
+            </View>
           )}
-        </IslandCard>
-
-        <Button label={t('common.back')} variant="secondary" onPress={() => navigation.goBack()} />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -216,7 +246,7 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.bg,
+      backgroundColor: theme.color.background,
     },
     centered: {
       flex: 1,
@@ -225,20 +255,97 @@ const createStyles = (theme: Theme) =>
       gap: 10,
     },
     content: {
-      padding: theme.spacing.lg,
-      gap: theme.spacing.sm,
+      padding: theme.space[4],
+      gap: theme.space[4],
     },
     headerWrap: {
-      marginBottom: theme.tokens.spacing[2],
-      backgroundColor: theme.tokens.color.background,
-      paddingBottom: theme.tokens.spacing[2],
+      marginBottom: theme.space[1],
+      backgroundColor: theme.color.background,
+      paddingBottom: theme.space[2],
+    },
+    hero: {
+      gap: theme.space[1],
+      padding: theme.space[5],
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+    },
+    heroValue: {
+      fontSize: 40,
+      lineHeight: 46,
+      fontWeight: '700',
+      color: theme.color.primary,
+    },
+    heroLabel: {
+      fontSize: theme.type.caption.fontSize,
+      color: theme.color.textSecondary,
+    },
+    heroMeta: {
+      marginTop: theme.space[1],
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.color.textPrimary,
+    },
+    group: {
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+      paddingHorizontal: theme.space[3],
+      paddingVertical: theme.space[1],
+    },
+    groupBlock: {
+      gap: theme.space[2],
+      padding: theme.space[4],
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.color.border,
+    },
+    section: {
+      gap: theme.space[2],
+    },
+    sectionHeading: {
+      fontSize: 20,
+      lineHeight: 26,
+      fontWeight: '700',
+      letterSpacing: -0.2,
+      color: theme.color.textPrimary,
+    },
+    bodyText: {
+      fontSize: 15,
+      lineHeight: 22,
+      color: theme.color.textPrimary,
+    },
+    metaText: {
+      fontSize: theme.type.caption.fontSize,
+      color: theme.color.textSecondary,
+    },
+    incidentRow: {
+      minHeight: 56,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.space[3],
+      paddingVertical: theme.space[3],
+      paddingHorizontal: theme.space[2],
+    },
+    incidentBody: {
+      flex: 1,
+      gap: 2,
+    },
+    incidentTitle: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.color.textPrimary,
+    },
+    pressed: {
+      opacity: 0.75,
     },
     card: {
       gap: 6,
     },
     row: {
       borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
+      borderTopColor: theme.color.border,
       paddingTop: 8,
       gap: 6,
     },
@@ -246,18 +353,18 @@ const createStyles = (theme: Theme) =>
       fontSize: 12,
       fontWeight: '700',
       textTransform: 'uppercase',
-      color: theme.colors.text,
+      color: theme.color.textPrimary,
     },
     label: {
       fontSize: 11,
-      color: theme.colors.textMuted,
+      color: theme.color.textSecondary,
     },
     value: {
       fontSize: 12,
-      color: theme.colors.text,
+      color: theme.color.textPrimary,
     },
     muted: {
       fontSize: 11,
-      color: theme.colors.textMuted,
+      color: theme.color.textSecondary,
     },
   });

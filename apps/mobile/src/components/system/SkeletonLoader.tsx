@@ -22,13 +22,13 @@ export default function SkeletonLoader({ lines = 3 }: SkeletonLoaderProps) {
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
     },
     line: {
       height: 14,
-      borderRadius: theme.tokens.radius.sm,
-      backgroundColor: theme.tokens.color.surfaceElevated,
+      borderRadius: theme.radius.sm,
+      backgroundColor: theme.color.surfaceElevated,
       borderWidth: 1,
-      borderColor: theme.tokens.color.border,
+      borderColor: theme.color.border,
     },
   });

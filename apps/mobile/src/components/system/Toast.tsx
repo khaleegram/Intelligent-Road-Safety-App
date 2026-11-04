@@ -15,12 +15,12 @@ export default function Toast({ message, variant = 'info' }: ToastProps) {
 
   const borderColor =
     variant === 'success'
-      ? theme.tokens.color.success
+      ? theme.color.success
       : variant === 'warning'
-        ? theme.tokens.color.warning
+        ? theme.color.warning
         : variant === 'error'
-          ? theme.tokens.color.error
-          : theme.tokens.color.info;
+          ? theme.color.error
+          : theme.color.info;
 
   return (
     <View style={[styles.container, { borderColor }]}>
@@ -34,13 +34,13 @@ const createStyles = (theme: Theme) =>
     container: {
       minHeight: 44,
       borderWidth: 1,
-      borderRadius: theme.tokens.radius.md,
-      backgroundColor: theme.tokens.color.surface,
-      paddingHorizontal: theme.tokens.spacing[3],
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.color.surface,
+      paddingHorizontal: theme.space[3],
       justifyContent: 'center',
     },
     message: {
-      color: theme.tokens.color.textPrimary,
-      fontSize: theme.tokens.typography.fontSize.sm,
+      color: theme.color.textPrimary,
+      fontSize: theme.type.body.fontSize,
     },
   });

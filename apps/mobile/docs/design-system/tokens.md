@@ -1,76 +1,68 @@
 # Design Tokens
 
+> Source of truth: `src/theme.tsx`. Night Drive is dark-first.
+> New code uses `theme.color`, `theme.space`, `theme.radius`, `theme.type`,
+> `theme.elevation` and `theme.motion`. The legacy `tokens`/`colors`/`spacing`/`font`
+> aliases exist only for migration and are deleted at the end of the redesign.
+
 ## Color
-- `color.primary`
-- `color.primaryHover`
-- `color.primaryActive`
+- `color.primary` / `primaryHover` / `primaryActive`
 - `color.secondary`
 - `color.background`
 - `color.surface`
 - `color.surfaceElevated`
-- `color.textPrimary`
-- `color.textSecondary`
-- `color.textInverse`
+- `color.textPrimary` / `textSecondary` / `textInverse`
 - `color.border`
-- `color.success`
-- `color.warning`
-- `color.error`
-- `color.info`
+- `color.success` / `warning` / `error` / `info`
 - `color.focusRing`
 
 ### Light
-- `primary`: `#0a47bf`
-- `primaryHover`: `#0d56d8`
-- `primaryActive`: `#083794`
-- `secondary`: `#0f7cc6`
-- `background`: `#f4f8ff`
+- `primary`: `#c2410c`
+- `primaryHover`: `#ea580c`
+- `primaryActive`: `#9a3412`
+- `secondary`: `#175cd3`
+- `background`: `#f6f7f9`
 - `surface`: `#ffffff`
-- `surfaceElevated`: `#edf3ff`
-- `textPrimary`: `#0f1b33`
-- `textSecondary`: `#4e5d79`
+- `surfaceElevated`: `#f1f3f7`
+- `textPrimary`: `#0b1220`
+- `textSecondary`: `#5b6779`
 - `textInverse`: `#ffffff`
-- `border`: `#d7e2f4`
-- `success`: `#128454`
-- `warning`: `#b96800`
-- `error`: `#c6284a`
-- `info`: `#0a66b3`
-- `focusRing`: `#0f5bdd`
+- `border`: `#dde3ea`
+- `success`: `#067647`
+- `warning`: `#b54708`
+- `error`: `#d92d20`
+- `info`: `#175cd3`
+- `focusRing`: `#c2410c`
 
-### Dark
-- `primary`: `#5da0ff`
-- `primaryHover`: `#82b7ff`
-- `primaryActive`: `#b2d1ff`
-- `secondary`: `#38a3ff`
-- `background`: `#070f1f`
-- `surface`: `#0f1a2e`
-- `surfaceElevated`: `#15233b`
-- `textPrimary`: `#f4f8ff`
-- `textSecondary`: `#c6d4ed`
-- `textInverse`: `#0f172a`
-- `border`: `#2a3b59`
-- `success`: `#47d686`
-- `warning`: `#f7b63c`
-- `error`: `#fb7390`
-- `info`: `#5bc6ff`
-- `focusRing`: `#82b7ff`
+### Dark (default)
+- `primary`: `#f5a524`
+- `primaryHover`: `#ffb84d`
+- `primaryActive`: `#e08e0b`
+- `secondary`: `#4ea8ff`
+- `background`: `#080b10`
+- `surface`: `#10151d`
+- `surfaceElevated`: `#161d28`
+- `textPrimary`: `#f2f5f9`
+- `textSecondary`: `#9aa7ba`
+- `textInverse`: `#0a0e14`
+- `border`: `#232c3a`
+- `success`: `#34d399`
+- `warning`: `#fbbf24`
+- `error`: `#ff5a5f`
+- `info`: `#4ea8ff`
+- `focusRing`: `#ffc14d`
 
 ## Typography
-- `font.family.sans`: `System`
-- `font.family.display`: `System`
-- `font.weight.regular`: `400`
-- `font.weight.medium`: `500`
-- `font.weight.semibold`: `600`
-- `font.weight.bold`: `700`
-- `font.size.xs`: `12`
-- `font.size.sm`: `14`
-- `font.size.md`: `16`
-- `font.size.lg`: `18`
-- `font.size.xl`: `20`
-- `font.size.2xl`: `24`
-- `font.size.3xl`: `30`
-- `lineHeight.tight`: `1.2`
-- `lineHeight.normal`: `1.4`
-- `lineHeight.relaxed`: `1.6`
+Bundled roles (`theme.type.<role>`), each with size, line height, weight and tracking:
+- `display`: 32 / 38 / 700 / -0.5
+- `title`: 24 / 30 / 700 / -0.3
+- `heading`: 18 / 24 / 600 / 0
+- `body`: 15 / 22 / 400 / 0
+- `label`: 13 / 18 / 600 / 0.1
+- `caption`: 12 / 16 / 500 / 0.1
+
+Raw scale (`tokens.typography`) is legacy; new code uses the roles above.
+Minimum rendered size: 12.
 
 ## Spacing
 - `space.0`: `0`
@@ -92,11 +84,10 @@
 - `radius.full`: `9999`
 
 ## Elevation
-- `shadow.none`
-- `shadow.sm`
-- `shadow.md`
-- `shadow.lg`
-- `shadow.overlay`
+- `elevation.flat`
+- `elevation.raised`
+- `elevation.floating`
+- `elevation.overlay`
 
 ## Motion
 - `motion.fast`: `120`

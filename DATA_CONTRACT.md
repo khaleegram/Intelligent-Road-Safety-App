@@ -5,7 +5,7 @@ This file locks the import contract for `RoadSafety_Dataset.xlsx` and documents 
 ## Collections (current)
 
 - `accidents/{request_id}`: app-facing core records used by map, alerts, and hotspot pipeline.
-- `accident_features/{request_id}`: rich research/ML fields from dataset import.
+- `accident_features/{request_id}`: rich research/ML fields from dataset import and the app's optional research fields.
 - `dataset_import_runs/{run_id}`: import audit metadata and outcomes.
 - `hotspots/{area_id}`: computed hotspot cells.
 - `users/{uid}`: profile, admin flag, preferences.
@@ -40,6 +40,16 @@ This file locks the import contract for `RoadSafety_Dataset.xlsx` and documents 
 - `model_version` (string)
 - `updated_at` (ISO string)
 - `advisory_only` (boolean, always true for v1)
+
+### `sem_insights/{id}` (admin read-only)
+
+- `model_version` (string)
+- `fit` (object: `cfi`, `tli`, `rmsea`, `srmr`)
+- `path_coefficients` (object: path name → coefficient)
+- `policy_recommendations` (string[])
+- `updated_at` (ISO string)
+
+Written by the research/SEM pipeline; the mobile admin dashboard only reads the latest entry and shows an empty state until data exists.
 
 ### `behaviour_trips/{tripId}`
 

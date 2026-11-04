@@ -114,6 +114,38 @@ test('authenticated user can create accident only with matching request_id and r
   );
 });
 
+test('signed-in user can attach research features to their own report', async () => {
+  const db = testEnv.authenticatedContext('researcher1').firestore();
+
+  await assertSucceeds(
+    setDoc(doc(db, 'accident_features/req_ok_1'), {
+      request_id: 'req_ok_1',
+      reporter_uid: 'researcher1',
+      created_at: new Date().toISOString(),
+      lighting_condition: 'Night (unlit)',
+      road_surface: 'Wet',
+      traffic_density: 'High',
+      suspected_cause: 'Speeding',
+    })
+  );
+
+  await assertFails(
+    setDoc(doc(db, 'accident_features/req_bad_owner'), {
+      request_id: 'req_bad_owner',
+      reporter_uid: 'someone-else',
+      created_at: new Date().toISOString(),
+    })
+  );
+
+  await assertFails(
+    setDoc(doc(db, 'accident_features/req_bad_feature_id'), {
+      request_id: 'different-id',
+      reporter_uid: 'researcher1',
+      created_at: new Date().toISOString(),
+    })
+  );
+});
+
 test('admin can verify report but non-admin cannot', async () => {
   const nonAdminDb = testEnv.authenticatedContext('researcher1').firestore();
   await assertFails(

@@ -1,10 +1,9 @@
 import MapboxGL from '@rnmapbox/maps';
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  ActivityIndicator,
   Alert,
   AppState,
   Pressable,
@@ -17,9 +16,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Button from '../components/Button';
-import GradientChip from '../components/GradientChip';
-import IslandCard from '../components/IslandCard';
+import IconButton from '../components/IconButton';
 import IslandBar from '../components/IslandBar';
+import OptionGrid from '../components/OptionGrid';
+import AlertBanner from '../components/system/AlertBanner';
 import { mapboxToken, missingFirebaseKeys } from '../config/env';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { createAccident } from '../services/firestore';
@@ -40,13 +40,16 @@ const severityOptions: AccidentSeverity[] = [
 ];
 const roadTypeOptions = ['Urban', 'Highway', 'Residential', 'Rural', 'Intersection', 'Other'];
 const weatherOptions = ['Clear', 'Rain', 'Fog', 'Night', 'Harmattan', 'Other'];
+const lightingOptions = ['Daylight', 'Dusk/Dawn', 'Night (lit)', 'Night (unlit)'];
+const roadSurfaceOptions = ['Dry', 'Wet', 'Gravel', 'Potholes'];
+const trafficDensityOptions = ['Low', 'Medium', 'High'];
+const suspectedCauseOptions = ['Speeding', 'Distraction', 'Weather', 'Road condition', 'Other'];
 const hasMapboxToken = mapboxToken.length > 0;
 
 export default function ReportScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
   const { t } = useI18n();
-  const tabBarHeight = useBottomTabBarHeight();
   const styles = createStyles(theme);
   const { isAdmin } = useAdminAccess();
   const mapboxNotice = t('report.mapboxMissingText');
@@ -75,7 +78,13 @@ export default function ReportScreen() {
   const [weatherCustom, setWeatherCustom] = useState('');
   const [vehicleCount, setVehicleCount] = useState(1);
   const [casualtyCount, setCasualtyCount] = useState(0);
+  const [showResearchDetails, setShowResearchDetails] = useState(false);
+  const [lightingCondition, setLightingCondition] = useState<string | undefined>();
+  const [roadSurface, setRoadSurface] = useState<string | undefined>();
+  const [trafficDensity, setTrafficDensity] = useState<string | undefined>();
+  const [suspectedCause, setSuspectedCause] = useState<string | undefined>();
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<{ title: string; message: string } | null>(null);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [compactBar, setCompactBar] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
@@ -97,6 +106,34 @@ export default function ReportScreen() {
     roadTypeValue.length > 0 &&
     weatherValue.length > 0 &&
     !submitting;
+
+  const missingFields = [
+    latitude.trim() && longitude.trim() ? null : t('report.location'),
+    roadTypeValue.length > 0 ? null : t('report.roadType'),
+    weatherValue.length > 0 ? null : t('report.weather'),
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  const statusNotice = !isOnline
+    ? {
+        variant: 'warning' as const,
+        title: t('common.offline'),
+        message: t('report.offlineBanner'),
+      }
+    : !hasMapboxToken
+      ? {
+          variant: 'warning' as const,
+          title: t('report.mapboxMissingTitle'),
+          message: mapboxNotice,
+        }
+      : missingFirebaseKeys.length > 0
+        ? {
+            variant: 'warning' as const,
+            title: t('report.firebaseMissingTitle'),
+            message: firebaseNoticeText,
+          }
+        : null;
 
   useEffect(() => {
     if (hasMapboxToken) {
@@ -174,6 +211,7 @@ export default function ReportScreen() {
   };
 
   const submit = async () => {
+    setFormError(null);
     const validation = validateReportDraft({
       latitude,
       longitude,
@@ -183,22 +221,36 @@ export default function ReportScreen() {
       vehicleCount,
       casualtyCount,
       timestamp: editTimestamp ? timestamp : undefined,
+      features: {
+        lighting_condition: lightingCondition,
+        road_surface: roadSurface,
+        traffic_density: trafficDensity,
+        suspected_cause: suspectedCause,
+      },
     });
 
     if (!validation.ok) {
-      if (validation.code === 'invalid_location') {
-        Alert.alert(t('report.invalidLocationTitle'), t('report.invalidLocationText'));
-        return;
-      }
-      if (validation.code === 'missing_road_type') {
-        Alert.alert(t('report.missingFieldTitle'), t('report.missingRoadTypeText'));
-        return;
-      }
-      if (validation.code === 'missing_weather') {
-        Alert.alert(t('report.missingFieldTitle'), t('report.missingWeatherText'));
-        return;
-      }
-      Alert.alert(t('report.invalidCountsTitle'), t('report.invalidCountsText'));
+      setFormError(
+        validation.code === 'invalid_location'
+          ? {
+              title: t('report.invalidLocationTitle'),
+              message: t('report.invalidLocationText'),
+            }
+          : validation.code === 'missing_road_type'
+            ? {
+                title: t('report.missingFieldTitle'),
+                message: t('report.missingRoadTypeText'),
+              }
+            : validation.code === 'missing_weather'
+              ? {
+                  title: t('report.missingFieldTitle'),
+                  message: t('report.missingWeatherText'),
+                }
+              : {
+                  title: t('report.invalidCountsTitle'),
+                  message: t('report.invalidCountsText'),
+                }
+      );
       return;
     }
 
@@ -213,6 +265,12 @@ export default function ReportScreen() {
         vehicleCount,
         casualtyCount,
         timestamp: editTimestamp ? timestamp : undefined,
+        features: {
+          lighting_condition: lightingCondition,
+          road_surface: roadSurface,
+          traffic_density: trafficDensity,
+          suspected_cause: suspectedCause,
+        },
       },
       nowIso
     );
@@ -250,7 +308,7 @@ export default function ReportScreen() {
         stickyHeaderIndices={[0]}
         scrollEventThrottle={16}
         onScroll={(event) => {
-          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.space[2];
           if (shouldCompact !== compactBar) {
             setCompactBar(shouldCompact);
           }
@@ -259,7 +317,7 @@ export default function ReportScreen() {
         keyboardDismissMode="on-drag"
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: theme.spacing.lg + tabBarHeight },
+          { paddingBottom: theme.space[8] },
         ]}
       >
         <View style={styles.headerWrap}>
@@ -277,41 +335,39 @@ export default function ReportScreen() {
             }}
           />
         </View>
-      {!isOnline ? (
-        <View style={styles.banner}>
-          <Text style={styles.bannerTitle}>{t('common.offline')}</Text>
-          <Text style={styles.bannerText}>{t('report.offlineBanner')}</Text>
-        </View>
-      ) : null}
-      {!hasMapboxToken ? (
-        <View style={styles.banner}>
-          <Text style={styles.bannerTitle}>{t('report.mapboxMissingTitle')}</Text>
-          <Text style={styles.bannerText}>{mapboxNotice}</Text>
-        </View>
-      ) : null}
-      {missingFirebaseKeys.length > 0 ? (
-        <View style={styles.banner}>
-          <Text style={styles.bannerTitle}>{t('report.firebaseMissingTitle')}</Text>
-          <Text style={styles.bannerText}>{firebaseNoticeText}</Text>
-        </View>
-      ) : null}
       {syncStatus ? (
-        <View style={styles.banner}>
-          <Text style={styles.bannerTitle}>{t('report.syncCompleteTitle')}</Text>
-          <Text style={styles.bannerText}>{syncStatus}</Text>
-        </View>
+        <AlertBanner
+          variant="success"
+          title={t('report.syncCompleteTitle')}
+          message={syncStatus}
+        />
+      ) : statusNotice ? (
+        <AlertBanner
+          variant={statusNotice.variant}
+          title={statusNotice.title}
+          message={statusNotice.message}
+        />
       ) : null}
 
       {hasMapboxToken ? (
-        <IslandCard style={styles.searchCard}>
-          <Text style={styles.sectionTitle}>{t('report.searchTitle')}</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder={t('report.searchPlaceholder')}
-            value={locationQuery}
-            onChangeText={setLocationQuery}
-            placeholderTextColor={theme.tokens.color.textSecondary}
-          />
+        <View style={styles.section}>
+          <Text style={styles.sectionHeading}>{t('report.searchTitle')}</Text>
+          <View style={styles.searchRow}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t('report.searchPlaceholder')}
+              value={locationQuery}
+              onChangeText={setLocationQuery}
+              placeholderTextColor={theme.color.textSecondary}
+            />
+            <IconButton
+              icon={<Ionicons name="locate" size={20} color={theme.color.textPrimary} />}
+              accessibilityLabel={t('report.useCurrentLocation')}
+              variant="solid"
+              disabled={!userLocation}
+              onPress={useCurrentLocation}
+            />
+          </View>
           {locationSearching ? (
             <Text style={styles.searchHint}>{t('report.searching')}</Text>
           ) : null}
@@ -329,54 +385,42 @@ export default function ReportScreen() {
               ))}
             </View>
           ) : null}
-          <View style={styles.quickRow}>
-            <Button
-              label={t('report.useCurrentLocation')}
-              variant="secondary"
-              onPress={useCurrentLocation}
-              disabled={!userLocation}
-              fullWidth
-            />
+          <View style={styles.mapPreview}>
+            <MapboxGL.MapView style={styles.map} onPress={handleMapPress}>
+              <MapboxGL.Camera
+                zoomLevel={selectedCoordinate ? 15 : 11}
+                centerCoordinate={selectedCoordinate ?? [8.6753, 9.082]}
+                minZoomLevel={5}
+                maxBounds={{
+                  ne: [14.678014, 13.885645],
+                  sw: [2.676932, 4.1821],
+                }}
+              />
+              <MapboxGL.UserLocation
+                visible
+                onUpdate={(location) => {
+                  const { longitude, latitude } = location.coords;
+                  if (typeof longitude === 'number' && typeof latitude === 'number') {
+                    setUserLocation([longitude, latitude]);
+                  }
+                }}
+              />
+              {selectedCoordinate ? (
+                <MapboxGL.PointAnnotation
+                  id="selected-location"
+                  coordinate={selectedCoordinate}
+                >
+                  <View />
+                </MapboxGL.PointAnnotation>
+              ) : null}
+            </MapboxGL.MapView>
           </View>
-        </IslandCard>
+          <Text style={styles.mapHint}>{t('report.mapHint')}</Text>
+        </View>
       ) : null}
 
-      {hasMapboxToken ? (
-        <IslandCard style={styles.mapCard}>
-          <MapboxGL.MapView style={styles.map} onPress={handleMapPress}>
-            <MapboxGL.Camera
-              zoomLevel={selectedCoordinate ? 15 : 11}
-              centerCoordinate={selectedCoordinate ?? [8.6753, 9.082]}
-              minZoomLevel={5}
-              maxBounds={{
-                ne: [14.678014, 13.885645],
-                sw: [2.676932, 4.1821],
-              }}
-            />
-            <MapboxGL.UserLocation
-              visible
-              onUpdate={(location) => {
-                const { longitude, latitude } = location.coords;
-                if (typeof longitude === 'number' && typeof latitude === 'number') {
-                  setUserLocation([longitude, latitude]);
-                }
-              }}
-            />
-          {selectedCoordinate ? (
-            <MapboxGL.PointAnnotation
-              id="selected-location"
-              coordinate={selectedCoordinate}
-            >
-              <View />
-            </MapboxGL.PointAnnotation>
-          ) : null}
-        </MapboxGL.MapView>
-        <Text style={styles.mapHint}>{t('report.mapHint')}</Text>
-      </IslandCard>
-      ) : null}
-
-      <IslandCard style={styles.formIsland}>
-      <Text style={styles.sectionTitle}>{t('report.sectionLocation')}</Text>
+      <View style={styles.section}>
+      <Text style={styles.sectionHeading}>{t('report.sectionLocation')}</Text>
       <View style={styles.inlineHeader}>
         <Text style={styles.inlineTitle}>{t('report.coordinates')}</Text>
         <Pressable
@@ -389,13 +433,14 @@ export default function ReportScreen() {
         </Pressable>
       </View>
       <View style={styles.coordinateRow}>
-        <View style={styles.coordinatePill}>
+        <View style={styles.coordinateItem}>
           <Text style={styles.coordinateLabel}>{t('report.lat')}</Text>
           <Text style={styles.coordinateValue}>
             {latitude.trim().length > 0 ? latitude : t('common.none')}
           </Text>
         </View>
-        <View style={styles.coordinatePill}>
+        <View style={styles.coordinateDivider} />
+        <View style={styles.coordinateItem}>
           <Text style={styles.coordinateLabel}>{t('report.lng')}</Text>
           <Text style={styles.coordinateValue}>
             {longitude.trim().length > 0 ? longitude : t('common.none')}
@@ -410,7 +455,7 @@ export default function ReportScreen() {
             value={latitude}
             onChangeText={setLatitude}
             keyboardType="numeric"
-            placeholderTextColor={theme.tokens.color.textSecondary}
+            placeholderTextColor={theme.color.textSecondary}
           />
           <TextInput
             style={styles.input}
@@ -418,7 +463,7 @@ export default function ReportScreen() {
             value={longitude}
             onChangeText={setLongitude}
             keyboardType="numeric"
-            placeholderTextColor={theme.tokens.color.textSecondary}
+            placeholderTextColor={theme.color.textSecondary}
           />
         </>
       ) : null}
@@ -444,96 +489,97 @@ export default function ReportScreen() {
           placeholder={t('report.timestampPlaceholder')}
           value={timestamp}
           onChangeText={setTimestamp}
-          placeholderTextColor={theme.tokens.color.textSecondary}
+          placeholderTextColor={theme.color.textSecondary}
         />
       ) : null}
-      </IslandCard>
+      </View>
 
-      <IslandCard style={styles.formIsland}>
-      <Text style={styles.sectionTitle}>{t('report.incidentDetails')}</Text>
       <View style={styles.section}>
-        <Text style={styles.label}>{t('report.severity')}</Text>
-        <View style={styles.row}>
-          {severityOptions.map((option) => (
-            <GradientChip
-              key={option}
-              style={styles.chip}
-              active={severity === option}
-              label={t(`options.severity.${option}`)}
-              onPress={() => setSeverity(option)}
-            />
-          ))}
-        </View>
-      </View>
+      <Text style={styles.sectionHeading}>{t('report.incidentDetails')}</Text>
+      <Text style={styles.label}>{t('report.severity')}</Text>
+      <OptionGrid
+        columns={2}
+        accessibilityLabel={t('report.severity')}
+        value={severity}
+        onChange={(value) => setSeverity(value as AccidentSeverity)}
+        options={severityOptions.map((option) => ({
+          value: option,
+          label: t(`options.severity.${option}`),
+        }))}
+      />
 
-      <Text style={styles.sectionTitle}>{t('report.roadType')}</Text>
-      <View style={styles.row}>
-        {roadTypeOptions.map((option) => (
-          <GradientChip
-            key={option}
-            style={styles.chip}
-            active={roadTypePreset === option}
-            label={t(`options.roadType.${option}`)}
-            onPress={() => {
-              setRoadTypePreset(option);
-              if (option !== 'Other') {
-                setRoadTypeCustom('');
-              }
-            }}
-          />
-        ))}
-      </View>
+      <Text style={styles.label}>{t('report.roadType')}</Text>
+      <OptionGrid
+        columns={3}
+        accessibilityLabel={t('report.roadType')}
+        value={roadTypePreset}
+        onChange={(value) => {
+          setRoadTypePreset(value);
+          if (value !== 'Other') {
+            setRoadTypeCustom('');
+          }
+        }}
+        options={roadTypeOptions.map((option) => ({
+          value: option,
+          label: t(`options.roadType.${option}`),
+        }))}
+      />
       {roadTypePreset === 'Other' ? (
         <TextInput
           style={styles.input}
           placeholder={t('report.describeRoadType')}
           value={roadTypeCustom}
           onChangeText={setRoadTypeCustom}
-          placeholderTextColor={theme.tokens.color.textSecondary}
+          placeholderTextColor={theme.color.textSecondary}
         />
       ) : null}
-      <Text style={styles.sectionTitle}>{t('report.weather')}</Text>
-      <View style={styles.row}>
-        {weatherOptions.map((option) => (
-          <GradientChip
-            key={option}
-            style={styles.chip}
-            active={weatherPreset === option}
-            label={t(`options.weather.${option}`)}
-            onPress={() => {
-              setWeatherPreset(option);
-              if (option !== 'Other') {
-                setWeatherCustom('');
-              }
-            }}
-          />
-        ))}
-      </View>
+      <Text style={styles.label}>{t('report.weather')}</Text>
+      <OptionGrid
+        columns={3}
+        accessibilityLabel={t('report.weather')}
+        value={weatherPreset}
+        onChange={(value) => {
+          setWeatherPreset(value);
+          if (value !== 'Other') {
+            setWeatherCustom('');
+          }
+        }}
+        options={weatherOptions.map((option) => ({
+          value: option,
+          label: t(`options.weather.${option}`),
+        }))}
+      />
       {weatherPreset === 'Other' ? (
         <TextInput
           style={styles.input}
           placeholder={t('report.describeWeather')}
           value={weatherCustom}
           onChangeText={setWeatherCustom}
-          placeholderTextColor={theme.tokens.color.textSecondary}
+          placeholderTextColor={theme.color.textSecondary}
         />
       ) : null}
-      <Text style={styles.sectionTitle}>{t('report.counts')}</Text>
+      <Text style={styles.label}>{t('report.counts')}</Text>
       <View style={styles.counterRow}>
         <Text style={styles.counterLabel}>{t('report.vehicles')}</Text>
         <View style={styles.counterControls}>
           <Pressable
-            style={styles.counterButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('report.decrease', { label: t('report.vehicles') })}
+            accessibilityState={{ disabled: vehicleCount === 0 }}
+            disabled={vehicleCount === 0}
+            style={[styles.counterButton, vehicleCount === 0 && styles.counterButtonDisabled]}
             onPress={() => setVehicleCount((value) => Math.max(0, value - 1))}
           >
-            <Text style={styles.counterButtonText}>-</Text>
+            <Ionicons name="remove" size={20} color={theme.color.textPrimary} />
           </Pressable>
           <Text style={styles.counterValue}>{vehicleCount}</Text>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('report.increase', { label: t('report.vehicles') })}
             style={styles.counterButton}
             onPress={() => setVehicleCount((value) => value + 1)}
           >
-            <Text style={styles.counterButtonText}>+</Text>
+            <Ionicons name="add" size={20} color={theme.color.textPrimary} />
           </Pressable>
         </View>
       </View>
@@ -541,38 +587,107 @@ export default function ReportScreen() {
         <Text style={styles.counterLabel}>{t('report.casualties')}</Text>
         <View style={styles.counterControls}>
           <Pressable
-            style={styles.counterButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('report.decrease', { label: t('report.casualties') })}
+            accessibilityState={{ disabled: casualtyCount === 0 }}
+            disabled={casualtyCount === 0}
+            style={[styles.counterButton, casualtyCount === 0 && styles.counterButtonDisabled]}
             onPress={() => setCasualtyCount((value) => Math.max(0, value - 1))}
           >
-            <Text style={styles.counterButtonText}>-</Text>
+            <Ionicons name="remove" size={20} color={theme.color.textPrimary} />
           </Pressable>
           <Text style={styles.counterValue}>{casualtyCount}</Text>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('report.increase', { label: t('report.casualties') })}
             style={styles.counterButton}
             onPress={() => setCasualtyCount((value) => value + 1)}
           >
-            <Text style={styles.counterButtonText}>+</Text>
+            <Ionicons name="add" size={20} color={theme.color.textPrimary} />
           </Pressable>
         </View>
       </View>
-      </IslandCard>
+      </View>
 
-      {submitting ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={theme.colors.accent} />
-          <Text style={styles.loadingText}>{t('report.submitting')}</Text>
-        </View>
-      ) : null}
+      <View style={styles.section}>
+        <Pressable
+          style={styles.inlineHeader}
+          onPress={() => setShowResearchDetails((prev) => !prev)}
+        >
+          <Text style={styles.sectionHeading}>{t('report.researchDetails')}</Text>
+          <Text style={styles.inlineActionText}>
+            {showResearchDetails ? t('common.close') : t('report.edit')}
+          </Text>
+        </Pressable>
+        <Text style={styles.inlineHint}>{t('report.researchDetailsHint')}</Text>
+        {showResearchDetails ? (
+          <>
+            <Text style={styles.label}>{t('report.lighting')}</Text>
+            <OptionGrid
+              columns={3}
+              accessibilityLabel={t('report.lighting')}
+              value={lightingCondition}
+              onChange={(value) =>
+                setLightingCondition((prev) => (prev === value ? undefined : value))
+              }
+              options={lightingOptions.map((option) => ({ value: option, label: option }))}
+            />
+            <Text style={styles.label}>{t('report.roadSurface')}</Text>
+            <OptionGrid
+              columns={3}
+              accessibilityLabel={t('report.roadSurface')}
+              value={roadSurface}
+              onChange={(value) =>
+                setRoadSurface((prev) => (prev === value ? undefined : value))
+              }
+              options={roadSurfaceOptions.map((option) => ({ value: option, label: option }))}
+            />
+            <Text style={styles.label}>{t('report.trafficDensity')}</Text>
+            <OptionGrid
+              columns={3}
+              accessibilityLabel={t('report.trafficDensity')}
+              value={trafficDensity}
+              onChange={(value) =>
+                setTrafficDensity((prev) => (prev === value ? undefined : value))
+              }
+              options={trafficDensityOptions.map((option) => ({ value: option, label: option }))}
+            />
+            <Text style={styles.label}>{t('report.suspectedCause')}</Text>
+            <OptionGrid
+              columns={3}
+              accessibilityLabel={t('report.suspectedCause')}
+              value={suspectedCause}
+              onChange={(value) =>
+                setSuspectedCause((prev) => (prev === value ? undefined : value))
+              }
+              options={suspectedCauseOptions.map((option) => ({ value: option, label: option }))}
+            />
+          </>
+        ) : null}
+      </View>
 
-      <View style={styles.actions}>
-        <Button label={t('report.submit')} onPress={submit} disabled={!canSubmit} />
+      </ScrollView>
+      <View style={styles.footer}>
+        {formError ? (
+          <AlertBanner
+            variant="error"
+            title={formError.title}
+            message={formError.message}
+          />
+        ) : null}
+        {!canSubmit && !submitting && missingFields ? (
+          <Text style={styles.footerHint}>
+            {t('report.completeFields', { fields: missingFields })}
+          </Text>
+        ) : null}
         <Button
-          label={t('common.backToMap')}
-          variant="secondary"
-          onPress={() => navigation.navigate('Public', { screen: 'Map' })}
+          label={t('report.submit')}
+          onPress={submit}
+          loading={submitting}
+          disabled={!canSubmit}
+          fullWidth
         />
       </View>
-      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -581,71 +696,82 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.bg,
+    backgroundColor: theme.color.background,
   },
   content: {
-    padding: theme.spacing.lg,
-    gap: theme.spacing.md,
+    padding: theme.space[5],
+    gap: theme.space[4],
+  },
+  footer: {
+    paddingHorizontal: theme.space[5],
+    paddingTop: theme.space[3],
+    paddingBottom: theme.space[4],
+    gap: theme.space[2],
+    borderTopWidth: 1,
+    borderTopColor: theme.color.border,
+    backgroundColor: theme.color.surface,
+  },
+  footerHint: {
+    fontSize: theme.type.caption.fontSize,
+    lineHeight: theme.type.caption.lineHeight,
+    color: theme.color.textSecondary,
   },
   headerWrap: {
-    marginBottom: theme.tokens.spacing[2],
-    backgroundColor: theme.tokens.color.background,
-    paddingBottom: theme.tokens.spacing[2],
+    marginBottom: theme.space[2],
+    backgroundColor: theme.color.background,
+    paddingBottom: theme.space[2],
   },
   formIsland: {
-    gap: theme.spacing.md,
+    gap: theme.space[2],
   },
   inlineHeader: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: theme.spacing.xs,
+    gap: theme.space[2],
   },
   inlineTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.text,
+    fontSize: theme.type.label.fontSize,
+    fontWeight: theme.type.label.fontWeight,
+    color: theme.color.textSecondary,
   },
   inlineAction: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: theme.radius.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceAlt,
+    minHeight: 44,
+    paddingHorizontal: theme.space[1],
+    justifyContent: 'center',
   },
   inlineActionText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: theme.colors.text,
+    fontSize: theme.type.label.fontSize,
+    fontWeight: theme.type.label.fontWeight,
+    color: theme.color.primary,
   },
   inlineHint: {
-    fontSize: 12,
-    color: theme.colors.textMuted,
-    marginBottom: theme.spacing.xs,
+    fontSize: theme.type.caption.fontSize,
+    color: theme.color.textSecondary,
   },
   coordinateRow: {
     flexDirection: 'row',
-    gap: theme.spacing.sm,
+    alignItems: 'center',
+    gap: theme.space[3],
   },
-  coordinatePill: {
+  coordinateItem: {
     flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: theme.radius.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
+  },
+  coordinateDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: theme.color.border,
   },
   coordinateLabel: {
-    fontSize: 11,
-    color: theme.colors.textMuted,
+    fontSize: theme.type.caption.fontSize,
+    color: theme.color.textSecondary,
   },
   coordinateValue: {
-    marginTop: 4,
-    fontSize: 13,
+    marginTop: 2,
+    fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.text,
+    color: theme.color.textPrimary,
   },
   loading: {
     flexDirection: 'row',
@@ -655,109 +781,127 @@ const createStyles = (theme: Theme) =>
   },
   loadingText: {
     fontSize: 12,
-    color: theme.colors.textMuted,
+    color: theme.color.textSecondary,
   },
   sectionTitle: {
-    fontSize: theme.tokens.typography.fontSize.sm,
-    fontWeight: '700',
-    color: theme.colors.text,
-    marginBottom: theme.tokens.spacing[2],
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '600',
+    color: theme.color.textPrimary,
+    marginTop: theme.space[1],
+    marginBottom: theme.space[2],
   },
   banner: {
-    marginBottom: theme.tokens.spacing[3],
-    padding: theme.tokens.spacing[3],
+    marginBottom: theme.space[3],
+    padding: theme.space[3],
     borderRadius: theme.radius.sm,
-    backgroundColor: theme.tokens.color.surfaceElevated,
+    backgroundColor: theme.color.surfaceElevated,
     borderWidth: 1,
-    borderColor: theme.tokens.color.border,
+    borderColor: theme.color.border,
   },
   bannerTitle: {
-    fontSize: theme.tokens.typography.fontSize.sm,
+    fontSize: theme.type.body.fontSize,
     fontWeight: '700',
-    color: theme.tokens.color.textPrimary,
+    color: theme.color.textPrimary,
   },
   bannerText: {
     marginTop: 4,
-    fontSize: theme.tokens.typography.fontSize.xs,
-    color: theme.tokens.color.textSecondary,
+    fontSize: theme.type.caption.fontSize,
+    color: theme.color.textSecondary,
   },
   input: {
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.sm,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.md,
     minHeight: 44,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: theme.spacing.sm,
-    backgroundColor: theme.colors.surface,
-    color: theme.colors.text,
+    paddingHorizontal: theme.space[3],
+    paddingVertical: theme.space[2],
+    marginBottom: theme.space[3],
+    backgroundColor: theme.color.surfaceElevated,
+    color: theme.color.textPrimary,
+    fontSize: theme.type.body.fontSize,
   },
   mapCard: {
-    marginBottom: theme.tokens.spacing[4],
+    marginBottom: theme.space[4],
     borderRadius: theme.radius.xl,
     overflow: 'hidden',
     padding: 0,
   },
   searchCard: {
-    marginBottom: theme.spacing.md,
-    gap: theme.spacing.md,
+    marginBottom: theme.space[4],
+    gap: theme.space[4],
   },
   searchInput: {
+    flex: 1,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.sm,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.md,
     minHeight: 44,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: theme.tokens.typography.fontSize.sm,
-    backgroundColor: theme.colors.surfaceAlt,
-    color: theme.colors.text,
+    paddingHorizontal: theme.space[3],
+    paddingVertical: theme.space[2],
+    fontSize: theme.type.body.fontSize,
+    backgroundColor: theme.color.surface,
+    color: theme.color.textPrimary,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.space[2],
   },
   searchHint: {
-    marginTop: theme.spacing.sm,
-    fontSize: 11,
-    color: theme.colors.textSoft,
+    fontSize: theme.type.caption.fontSize,
+    color: theme.color.textSecondary,
   },
   quickRow: {
-    marginTop: theme.spacing.sm,
+    marginTop: theme.space[2],
   },
   map: {
-    height: 200,
+    height: 170,
+  },
+  mapPreview: {
+    borderRadius: theme.radius.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.color.border,
   },
   mapHint: {
-    padding: 10,
-    fontSize: 12,
-    color: theme.colors.textMuted,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+    fontSize: theme.type.caption.fontSize,
+    color: theme.color.textSecondary,
   },
   section: {
-    marginBottom: 12,
+    gap: theme.space[2],
+  },
+  sectionHeading: {
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    color: theme.color.textPrimary,
   },
   label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginBottom: 8,
+    fontSize: theme.type.label.fontSize,
+    lineHeight: theme.type.label.lineHeight,
+    fontWeight: theme.type.label.fontWeight,
+    color: theme.color.textPrimary,
+    marginTop: theme.space[3],
+    marginBottom: theme.space[2],
   },
   row: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: theme.spacing.sm,
+    gap: theme.space[3],
   },
   counterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    paddingVertical: theme.space[3],
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.color.border,
   },
   counterLabel: {
-    fontSize: 12,
-    color: theme.colors.text,
+    fontSize: 14,
+    color: theme.color.textPrimary,
   },
   counterControls: {
     flexDirection: 'row',
@@ -765,56 +909,59 @@ const createStyles = (theme: Theme) =>
     gap: 10,
   },
   counterButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: theme.radius.md,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.color.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.surfaceAlt,
+    backgroundColor: theme.color.surfaceElevated,
+  },
+  counterButtonDisabled: {
+    opacity: 0.4,
   },
   counterButtonText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    color: theme.colors.text,
+    color: theme.color.textPrimary,
   },
   counterValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.text,
-    minWidth: 24,
+    fontSize: theme.type.heading.fontSize,
+    fontWeight: theme.type.heading.fontWeight,
+    color: theme.color.textPrimary,
+    minWidth: 32,
     textAlign: 'center',
   },
   chip: {
     flexGrow: 0,
   },
   suggestionList: {
-    marginTop: theme.spacing.sm,
+    marginTop: theme.space[1],
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.sm,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.md,
     overflow: 'hidden',
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.color.surface,
   },
   suggestionItem: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    paddingVertical: theme.space[3],
+    paddingHorizontal: theme.space[3],
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.color.border,
   },
   suggestionTitle: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.text,
+    color: theme.color.textPrimary,
   },
   suggestionSubtitle: {
     marginTop: 2,
-    fontSize: 11,
-    color: theme.colors.textMuted,
+    fontSize: theme.type.caption.fontSize,
+    color: theme.color.textSecondary,
   },
   actions: {
-    marginTop: theme.spacing.md,
-    gap: theme.spacing.sm,
+    marginTop: theme.space[4],
+    gap: theme.space[3],
   },
   });

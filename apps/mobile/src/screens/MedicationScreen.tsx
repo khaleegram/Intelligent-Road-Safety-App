@@ -4,11 +4,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import Button from '../components/Button';
 import IslandBar from '../components/IslandBar';
-import IslandCard from '../components/IslandCard';
 import InputField from '../components/system/InputField';
-import ListItem from '../components/system/ListItem';
 import EmptyState from '../components/system/EmptyState';
 import medications from '../content/medications.json';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -48,20 +45,26 @@ export default function MedicationScreen() {
     return t('medication.avoid');
   };
 
+  const levelColor = (level: MedicationEntry['level']) => {
+    if (level === 'safe') return theme.color.success;
+    if (level === 'caution') return theme.color.warning;
+    return theme.color.error;
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
         stickyHeaderIndices={[0]}
         scrollEventThrottle={16}
         onScroll={(event) => {
-          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.space[2];
           if (shouldCompact !== compactBar) {
             setCompactBar(shouldCompact);
           }
         }}
         contentContainerStyle={[
           styles.content,
-          { paddingHorizontal: contentPadding, paddingBottom: theme.spacing.lg + insets.bottom },
+          { paddingHorizontal: contentPadding, paddingBottom: theme.space[6] + insets.bottom },
         ]}
       >
         <View style={styles.headerWrap}>
@@ -72,6 +75,7 @@ export default function MedicationScreen() {
             mode="public"
             compact={compactBar}
             isAdmin={isAdmin}
+            onBack={() => navigation.goBack()}
             onToggle={(next) => {
               if (next === 'admin') {
                 navigation.navigate('Admin', undefined);
@@ -80,16 +84,26 @@ export default function MedicationScreen() {
           />
         </View>
 
-        <IslandCard style={styles.card}>
-          <Text style={styles.disclaimer}>{t('medication.disclaimer')}</Text>
+        <View style={styles.searchGroup}>
           <InputField
-            label={t('medication.searchPlaceholder')}
+            label={t('nav.search')}
             placeholder={t('medication.searchPlaceholder')}
             value={query}
             onChangeText={setQuery}
             autoCapitalize="none"
           />
-        </IslandCard>
+          <View style={styles.legendRow}>
+            {(['safe', 'caution', 'avoid'] as const).map((level) => (
+              <View key={level} style={styles.legendItem}>
+                <View
+                  style={[styles.legendDot, { backgroundColor: levelColor(level) }]}
+                />
+                <Text style={styles.legendText}>{levelLabel(level)}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+        <Text style={styles.disclaimer}>{t('medication.disclaimer')}</Text>
 
         {filtered.length === 0 ? (
           <EmptyState
@@ -98,22 +112,36 @@ export default function MedicationScreen() {
             nextStep={t('common.retry')}
           />
         ) : (
-          filtered.map((entry) => (
-            <IslandCard key={entry.id} style={styles.card}>
-              <ListItem
-                title={entry.names[0]}
-                subtitle={entry.names.slice(1).join(', ')}
-                meta={levelLabel(entry.level)}
-              />
-              <Text style={styles.adviceLabel}>{t('medication.advice')}</Text>
-              <Text style={styles.advice}>
-                {String(entry[adviceKey] ?? entry.advice_en)}
-              </Text>
-            </IslandCard>
-          ))
+          <View style={styles.listGroup}>
+            {filtered.map((entry, index) => (
+              <View key={entry.id}>
+                {index > 0 ? <View style={styles.divider} /> : null}
+                <View style={styles.entryRow}>
+                  <View style={styles.entryHeader}>
+                    <Text style={styles.entryName}>{entry.names[0]}</Text>
+                    <View style={styles.levelBadge}>
+                      <View
+                        style={[
+                          styles.legendDot,
+                          { backgroundColor: levelColor(entry.level) },
+                        ]}
+                      />
+                      <Text style={styles.levelText}>{levelLabel(entry.level)}</Text>
+                    </View>
+                  </View>
+                  {entry.names.length > 1 ? (
+                    <Text style={styles.entryAliases}>
+                      {entry.names.slice(1).join(' · ')}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.entryAdvice}>
+                    {String(entry[adviceKey] ?? entry.advice_en)}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
         )}
-
-        <Button label={t('common.back')} variant="secondary" onPress={() => navigation.goBack()} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -123,32 +151,115 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.bg,
+      backgroundColor: theme.color.background,
     },
     content: {
-      padding: theme.tokens.spacing[4],
-      gap: theme.tokens.spacing[3],
+      padding: theme.space[4],
+      gap: theme.space[3],
     },
     headerWrap: {
-      marginBottom: theme.tokens.spacing[2],
-      backgroundColor: theme.tokens.color.background,
-      paddingBottom: theme.tokens.spacing[2],
+      marginBottom: theme.space[2],
+      backgroundColor: theme.color.background,
+      paddingBottom: theme.space[2],
     },
     card: {
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
+    },
+    searchGroup: {
+      gap: theme.space[3],
+      padding: theme.space[4],
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+    },
+    legendRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: theme.space[3],
+    },
+    legendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.space[1],
+    },
+    legendDot: {
+      width: 10,
+      height: 10,
+      borderRadius: theme.radius.full,
+    },
+    legendText: {
+      fontSize: theme.type.caption.fontSize,
+      color: theme.color.textSecondary,
+    },
+    listGroup: {
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+      paddingHorizontal: theme.space[2],
+    },
+    entryRow: {
+      gap: theme.space[1],
+      paddingVertical: theme.space[4],
+      paddingHorizontal: theme.space[2],
+    },
+    entryHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: theme.space[3],
+    },
+    entryName: {
+      flex: 1,
+      fontSize: 17,
+      lineHeight: 22,
+      fontWeight: '700',
+      color: theme.color.textPrimary,
+    },
+    levelBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.space[1],
+      paddingHorizontal: theme.space[2],
+      paddingVertical: 3,
+      borderRadius: theme.radius.full,
+      backgroundColor: theme.color.surfaceElevated,
+    },
+    levelText: {
+      fontSize: theme.type.caption.fontSize,
+      fontWeight: '600',
+      color: theme.color.textPrimary,
+    },
+    entryAliases: {
+      fontSize: theme.type.caption.fontSize,
+      color: theme.color.textSecondary,
+    },
+    entryAdvice: {
+      marginTop: theme.space[1],
+      fontSize: 14,
+      lineHeight: 21,
+      color: theme.color.textSecondary,
+    },
+    group: {
+      gap: theme.space[3],
+      padding: theme.space[4],
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.color.border,
+      marginVertical: theme.space[2],
     },
     disclaimer: {
-      fontSize: theme.tokens.typography.fontSize.xs,
-      color: theme.tokens.color.textSecondary,
+      fontSize: theme.type.caption.fontSize,
+      color: theme.color.textSecondary,
     },
     adviceLabel: {
-      fontSize: theme.tokens.typography.fontSize.xs,
-      fontWeight: theme.tokens.typography.fontWeight.semibold,
-      color: theme.tokens.color.textPrimary,
+      fontSize: theme.type.caption.fontSize,
+      fontWeight: '600',
+      color: theme.color.textPrimary,
     },
     advice: {
-      fontSize: theme.tokens.typography.fontSize.sm,
-      color: theme.tokens.color.textSecondary,
+      fontSize: theme.type.body.fontSize,
+      color: theme.color.textSecondary,
       lineHeight: 20,
     },
   });

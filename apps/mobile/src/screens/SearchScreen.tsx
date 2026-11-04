@@ -13,7 +13,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 
 import IslandBar from '../components/IslandBar';
-import IslandCard from '../components/IslandCard';
 import InputField from '../components/system/InputField';
 import ListItem from '../components/system/ListItem';
 import EmptyState from '../components/system/EmptyState';
@@ -71,13 +70,20 @@ export default function SearchScreen() {
     };
   }, [query]);
 
+  const openResult = (item: GeocodeSuggestion) => {
+    navigation.navigate('Public', {
+      screen: 'Map',
+      params: { focusLat: item.center[1], focusLng: item.center[0] },
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
         stickyHeaderIndices={[0]}
         scrollEventThrottle={16}
         onScroll={(event) => {
-          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.space[2];
           if (shouldCompact !== compactBar) {
             setCompactBar(shouldCompact);
           }
@@ -102,16 +108,17 @@ export default function SearchScreen() {
           />
         </View>
 
-        <IslandCard style={styles.card}>
+        <View style={styles.group}>
           <InputField
             label={t('search.fieldLabel')}
             placeholder={t('search.placeholder')}
             value={query}
             onChangeText={setQuery}
+            autoFocus
           />
-        </IslandCard>
+        </View>
 
-        <IslandCard style={styles.card}>
+        <View style={styles.resultsGroup}>
           {loading ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator size="small" />
@@ -127,19 +134,18 @@ export default function SearchScreen() {
             />
           ) : null}
 
-          {results.map((item) => (
-            <Pressable
-              key={item.id}
-              onPress={() => navigation.navigate('Public', { screen: 'Map' })}
-            >
+          {results.map((item, index) => (
+            <View key={item.id}>
+              {index > 0 ? <View style={styles.divider} /> : null}
               <ListItem
                 title={item.name}
                 subtitle={item.place_name}
                 meta={`${item.center[1].toFixed(5)}, ${item.center[0].toFixed(5)}`}
+                onPress={() => openResult(item)}
               />
-            </Pressable>
+            </View>
           ))}
-        </IslandCard>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -149,29 +155,45 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.tokens.color.background,
+      backgroundColor: theme.color.background,
     },
     content: {
-      padding: theme.tokens.spacing[4],
-      gap: theme.tokens.spacing[4],
-      paddingBottom: theme.tokens.spacing[12],
+      padding: theme.space[4],
+      gap: theme.space[4],
+      paddingBottom: theme.space[12],
     },
     headerWrap: {
-      marginBottom: theme.tokens.spacing[2],
-      backgroundColor: theme.tokens.color.background,
-      paddingBottom: theme.tokens.spacing[2],
+      marginBottom: theme.space[2],
+      backgroundColor: theme.color.background,
+      paddingBottom: theme.space[2],
     },
     card: {
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
+    },
+    group: {
+      padding: theme.space[4],
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+    },
+    resultsGroup: {
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+      paddingHorizontal: theme.space[2],
+      paddingVertical: theme.space[1],
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.color.border,
+      marginLeft: theme.space[2],
     },
     loadingRow: {
       minHeight: 44,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
     },
     hint: {
-      fontSize: theme.tokens.typography.fontSize.sm,
-      color: theme.tokens.color.textSecondary,
+      fontSize: theme.type.body.fontSize,
+      color: theme.color.textSecondary,
     },
   });

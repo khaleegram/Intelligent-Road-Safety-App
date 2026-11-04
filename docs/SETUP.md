@@ -4,8 +4,9 @@ Local and ops setup for **SafeDrive NG** (research title: *Developing an Integra
 
 ## Prerequisites
 
-- Node.js LTS
-- Java 21+ (only for Firestore rules tests)
+- Node.js 22.13+ (required by Expo SDK 58)
+- Java 21+ for Android builds and Firestore rules tests
+- Expo SDK 58 / React Native 0.88 (managed via `apps/mobile/package.json`)
 - Expo CLI (via npx)
 - Firebase project (Firestore + Email/Password Auth)
 - Mapbox account (public token + secret download token)
@@ -61,6 +62,8 @@ npx expo run:android
 ```
 
 Expo Go does **not** support `@rnmapbox/maps`. Use a development build.
+The `android/` folder is generated with Expo Prebuild and checked in; after changing
+`app.json` / `app.config.ts` plugins, regenerate it with `npx expo prebuild --clean`.
 
 Smoke checklist: [docs/SMOKE_TEST.md](SMOKE_TEST.md).
 

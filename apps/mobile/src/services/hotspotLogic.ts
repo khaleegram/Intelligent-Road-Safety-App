@@ -41,12 +41,18 @@ export const computeHotspotsFromAccidents = (
   config: HotspotLogicConfig = defaultConfig
 ): HotspotRecord[] => {
   const cells = new Map<string, CellAccumulator>();
+  const computedAt = new Date().toISOString();
+  let dataThroughMs = 0;
 
   for (const accident of accidents) {
     const key = getCellKey(accident.latitude, accident.longitude, config.gridSizeDegrees);
     const existing = cells.get(key);
     const weight = severityWeight[accident.severity];
     const timestamp = accident.created_at || accident.timestamp;
+    const parsedTimestamp = Date.parse(timestamp);
+    if (!Number.isNaN(parsedTimestamp) && parsedTimestamp > dataThroughMs) {
+      dataThroughMs = parsedTimestamp;
+    }
 
     if (existing) {
       existing.count += 1;
@@ -86,6 +92,8 @@ export const computeHotspotsFromAccidents = (
       severity_level: cell.maxSeverity,
       accident_count: cell.count,
       last_updated: cell.latestTimestamp,
+      computed_at: computedAt,
+      data_through: dataThroughMs > 0 ? new Date(dataThroughMs).toISOString() : computedAt,
     });
   }
 

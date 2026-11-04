@@ -17,8 +17,8 @@ Follow in order. Defaults: **GitHub Actions** for scheduling; **synthetic seed**
 ## Sprint 2 — Dev client
 
 - [ ] `cd apps/mobile && npm install`
-- [ ] `npx expo prebuild`
-- [ ] `npx expo run:android` (or iOS)
+- [ ] `npx expo prebuild --clean` (SDK 58 / RN 0.88 native project)
+- [ ] Rebuild the dev client: `npx expo run:android` (or iOS)
 - [ ] Map renders with Mapbox token
 - [ ] Smoke tests in [SMOKE_TEST.md](SMOKE_TEST.md) pass
 

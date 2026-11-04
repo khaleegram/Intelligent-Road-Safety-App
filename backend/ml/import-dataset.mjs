@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import admin from 'firebase-admin';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import XLSX from 'xlsx';
 import { computeHotspots } from '../shared/hotspots-core.mjs';
 import { normalizeDatasetRow } from './import-dataset-lib.mjs';
@@ -40,8 +41,8 @@ const parseJsonEnvIfNeeded = (value) => {
 };
 
 const initFirestore = () => {
-  if (admin.apps.length > 0) {
-    return admin.firestore();
+  if (getApps().length > 0) {
+    return getFirestore();
   }
 
   const servicePath = process.env.GOOGLE_APPLICATION_CREDENTIALS
@@ -56,30 +57,30 @@ const initFirestore = () => {
       throw new Error(`Service account file not found: ${absolutePath}`);
     }
     const serviceAccount = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+    initializeApp({
+      credential: cert(serviceAccount),
     });
   } else if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
     const parsed = parseJsonEnvIfNeeded(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
     if (!parsed) {
       throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is set but not valid JSON.');
     }
-    admin.initializeApp({
-      credential: admin.credential.cert(parsed),
+    initializeApp({
+      credential: cert(parsed),
     });
   } else if (envProjectId && envClientEmail && envPrivateKey) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
+    initializeApp({
+      credential: cert({
         projectId: envProjectId,
         clientEmail: envClientEmail,
         privateKey: envPrivateKey.replace(/\\n/g, '\n'),
       }),
     });
   } else {
-    admin.initializeApp();
+    initializeApp();
   }
 
-  return admin.firestore();
+  return getFirestore();
 };
 
 const createRunId = () => {

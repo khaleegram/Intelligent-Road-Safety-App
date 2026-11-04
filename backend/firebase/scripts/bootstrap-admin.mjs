@@ -6,7 +6,9 @@
  *   node scripts/bootstrap-admin.mjs --email you@example.com
  *   node scripts/bootstrap-admin.mjs --uid <uid>
  */
-import admin from 'firebase-admin';
+import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
 const args = process.argv.slice(2);
 const getArg = (name) => {
@@ -23,22 +25,22 @@ if (!email && !uidArg) {
 }
 
 function initAdmin() {
-  if (admin.apps.length) return;
+  if (getApps().length) return;
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
   if (projectId && clientEmail && privateKey) {
-    admin.initializeApp({
-      credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+    initializeApp({
+      credential: cert({ projectId, clientEmail, privateKey }),
     });
     return;
   }
-  admin.initializeApp({ credential: admin.credential.applicationDefault() });
+  initializeApp({ credential: applicationDefault() });
 }
 
 initAdmin();
-const db = admin.firestore();
-const auth = admin.auth();
+const db = getFirestore();
+const auth = getAuth();
 
 let uid = uidArg;
 if (!uid && email) {

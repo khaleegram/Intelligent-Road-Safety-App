@@ -24,24 +24,24 @@ export default function ScreenHeader({ title, subtitle, eyebrow }: ScreenHeaderP
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
-      marginBottom: theme.spacing.sm,
+      marginBottom: theme.space[3],
     },
   eyebrow: {
-    fontSize: theme.font.small,
+    fontSize: theme.type.caption.fontSize,
     fontWeight: '700',
     letterSpacing: 1,
     textTransform: 'uppercase',
-    color: theme.colors.textSoft,
+    color: theme.color.textSecondary,
     marginBottom: 4,
   },
   title: {
-    fontSize: theme.font.title,
+    fontSize: theme.type.title.fontSize,
     fontWeight: '700',
-    color: theme.colors.text,
+    color: theme.color.textPrimary,
   },
     subtitle: {
       marginTop: 4,
-      fontSize: theme.font.subtitle,
-      color: theme.colors.textMuted,
+      fontSize: theme.type.body.fontSize,
+      color: theme.color.textSecondary,
     },
   });

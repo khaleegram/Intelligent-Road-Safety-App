@@ -7,8 +7,8 @@ import type { RouteProp } from '@react-navigation/native';
 import { signOut } from 'firebase/auth';
 
 import IslandBar from '../components/IslandBar';
-import IslandCard from '../components/IslandCard';
 import Button from '../components/Button';
+import StatTile from '../components/StatTile';
 import Avatar from '../components/system/Avatar';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { auth } from '../services/firebase';
@@ -62,13 +62,30 @@ export default function ProfileScreen() {
     }
   };
 
+  const confirmSignOut = () => {
+    Alert.alert(
+      t('settings.signOutConfirmTitle'),
+      t('settings.signOutConfirmText'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.signOut'),
+          style: 'destructive',
+          onPress: () => {
+            void handleSignOut();
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
         stickyHeaderIndices={[0]}
         scrollEventThrottle={16}
         onScroll={(event) => {
-          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.space[2];
           if (shouldCompact !== compactBar) {
             setCompactBar(shouldCompact);
           }
@@ -93,64 +110,41 @@ export default function ProfileScreen() {
           />
         </View>
 
-        <IslandCard style={styles.card}>
-          <View style={styles.profileRow}>
+        <View style={styles.section}>
+          <View style={styles.accountRow}>
             <Avatar initials={initials} size="lg" />
             <View style={styles.profileInfo}>
-              <Text style={styles.email}>{email}</Text>
-              <Text style={styles.meta}>{user?.uid ?? t('common.none')}</Text>
+              <Text style={styles.email} numberOfLines={1}>
+                {email}
+              </Text>
               <Text style={styles.meta}>
-                {t('settings.adminStatus', {
-                  value: isAdmin ? t('common.enabled') : t('common.disabled'),
-                })}
+                {isAdmin ? t('nav.admin') : t('settings.member')}
               </Text>
             </View>
           </View>
-        </IslandCard>
 
-        <IslandCard style={styles.card}>
-          <Text style={styles.email}>{t('profile.statsTitle')}</Text>
-          <Text style={styles.meta}>{t('profile.statsReports', { count: reportCount })}</Text>
-          <Text style={styles.meta}>{t('profile.statsAlerts', { count: alertCount })}</Text>
-        </IslandCard>
+          <View style={styles.statsRow}>
+            <StatTile label={t('nav.reports')} value={String(reportCount)} />
+            <StatTile label={t('nav.notifications')} value={String(alertCount)} />
+          </View>
 
-        <IslandCard style={styles.card}>
-          <Button
-            label={t('profile.openSos')}
-            variant="secondary"
-            onPress={() => navigation.navigate('Sos')}
-          />
-          <Button
-            label={t('profile.openEducation')}
-            variant="secondary"
-            onPress={() => navigation.navigate('Education')}
-          />
-          <Button
-            label={t('profile.openMedication')}
-            variant="secondary"
-            onPress={() => navigation.navigate('Medication')}
-          />
-          <Button
-            label={t('profile.openFeedback')}
-            variant="secondary"
-            onPress={() => navigation.navigate('Feedback')}
-          />
-          <Button
-            label={t('profile.openBehaviour')}
-            variant="secondary"
-            onPress={() => navigation.navigate('Behaviour')}
-          />
-          <Button
-            label={t('common.settings')}
-            variant="secondary"
-            onPress={() => navigation.navigate('Public', { screen: 'Settings' })}
-          />
+          {isAdmin ? (
+            <Button
+              label={t('settings.adminDashboard')}
+              variant="secondary"
+              fullWidth
+              onPress={() => navigation.navigate('Admin', undefined)}
+            />
+          ) : null}
+
           <Button
             label={signingOut ? t('settings.signingOut') : t('common.signOut')}
-            onPress={handleSignOut}
-            disabled={signingOut}
+            variant="destructive"
+            fullWidth
+            loading={signingOut}
+            onPress={confirmSignOut}
           />
-        </IslandCard>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -160,37 +154,41 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.tokens.color.background,
+      backgroundColor: theme.color.background,
     },
     content: {
-      padding: theme.tokens.spacing[4],
-      gap: theme.tokens.spacing[4],
-      paddingBottom: theme.tokens.spacing[12],
+      padding: theme.space[4],
+      gap: theme.space[5],
+      paddingBottom: theme.space[12],
     },
     headerWrap: {
-      marginBottom: theme.tokens.spacing[2],
-      backgroundColor: theme.tokens.color.background,
-      paddingBottom: theme.tokens.spacing[2],
+      marginBottom: theme.space[1],
+      backgroundColor: theme.color.background,
+      paddingBottom: theme.space[2],
     },
-    card: {
-      gap: theme.tokens.spacing[2],
+    section: {
+      gap: theme.space[4],
     },
-    profileRow: {
+    statsRow: {
+      flexDirection: 'row',
+      gap: theme.space[3],
+    },
+    accountRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.tokens.spacing[3],
+      gap: theme.space[3],
     },
     profileInfo: {
       flex: 1,
-      gap: theme.tokens.spacing[1],
+      gap: 2,
     },
     email: {
-      color: theme.tokens.color.textPrimary,
-      fontSize: theme.tokens.typography.fontSize.md,
-      fontWeight: theme.tokens.typography.fontWeight.semibold,
+      color: theme.color.textPrimary,
+      fontSize: 18,
+      fontWeight: '600',
     },
     meta: {
-      color: theme.tokens.color.textSecondary,
-      fontSize: theme.tokens.typography.fontSize.xs,
+      color: theme.color.textSecondary,
+      fontSize: theme.type.caption.fontSize,
     },
   });

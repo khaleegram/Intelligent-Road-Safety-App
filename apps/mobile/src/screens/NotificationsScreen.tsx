@@ -12,7 +12,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 
 import IslandBar from '../components/IslandBar';
-import IslandCard from '../components/IslandCard';
 import ListItem from '../components/system/ListItem';
 import EmptyState from '../components/system/EmptyState';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -76,7 +75,7 @@ export default function NotificationsScreen() {
         stickyHeaderIndices={[0]}
         scrollEventThrottle={16}
         onScroll={(event) => {
-          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.space[2];
           if (shouldCompact !== compactBar) {
             setCompactBar(shouldCompact);
           }
@@ -101,7 +100,7 @@ export default function NotificationsScreen() {
           />
         </View>
 
-        <IslandCard style={styles.card}>
+        <View style={styles.resultsGroup}>
           {loading ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator size="small" />
@@ -118,23 +117,27 @@ export default function NotificationsScreen() {
           ) : null}
 
           {mode === 'admin'
-            ? alerts.map((item) => (
-                <ListItem
-                  key={item.id ?? `${item.created_at}-${item.message}`}
-                  title={item.message}
-                  subtitle={`${item.type} - ${item.level}`}
-                  meta={item.created_at}
-                />
+            ? alerts.map((item, index) => (
+                <View key={item.id ?? `${item.created_at}-${item.message}`}>
+                  {index > 0 ? <View style={styles.divider} /> : null}
+                  <ListItem
+                    title={item.message}
+                    subtitle={`${item.type} - ${item.level}`}
+                    meta={item.created_at}
+                  />
+                </View>
               ))
-            : localAlerts.map((item) => (
-                <ListItem
-                  key={item.id}
-                  title={item.title}
-                  subtitle={item.message}
-                  meta={item.created_at}
-                />
+            : localAlerts.map((item, index) => (
+                <View key={item.id}>
+                  {index > 0 ? <View style={styles.divider} /> : null}
+                  <ListItem
+                    title={item.title}
+                    subtitle={item.message}
+                    meta={item.created_at}
+                  />
+                </View>
               ))}
-        </IslandCard>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -144,29 +147,40 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.tokens.color.background,
+      backgroundColor: theme.color.background,
     },
     content: {
-      padding: theme.tokens.spacing[4],
-      gap: theme.tokens.spacing[4],
-      paddingBottom: theme.tokens.spacing[12],
+      padding: theme.space[4],
+      gap: theme.space[4],
+      paddingBottom: theme.space[12],
     },
     headerWrap: {
-      marginBottom: theme.tokens.spacing[2],
-      backgroundColor: theme.tokens.color.background,
-      paddingBottom: theme.tokens.spacing[2],
+      marginBottom: theme.space[2],
+      backgroundColor: theme.color.background,
+      paddingBottom: theme.space[2],
     },
     card: {
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
+    },
+    resultsGroup: {
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+      paddingHorizontal: theme.space[2],
+      paddingVertical: theme.space[1],
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.color.border,
+      marginLeft: theme.space[2],
     },
     loadingRow: {
       minHeight: 44,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
     },
     hint: {
-      fontSize: theme.tokens.typography.fontSize.sm,
-      color: theme.tokens.color.textSecondary,
+      fontSize: theme.type.body.fontSize,
+      color: theme.color.textSecondary,
     },
   });

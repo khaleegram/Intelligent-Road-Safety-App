@@ -1,4 +1,8 @@
-import type { AccidentRecord, AccidentSeverity } from '../types';
+import type {
+  AccidentFeatures,
+  AccidentRecord,
+  AccidentSeverity,
+} from '../types';
 
 export type ReportDraft = {
   latitude: string;
@@ -9,6 +13,7 @@ export type ReportDraft = {
   vehicleCount: number;
   casualtyCount: number;
   timestamp?: string;
+  features?: AccidentFeatures;
 };
 
 export type ReportValidationError =
@@ -45,6 +50,8 @@ export function buildAccidentRecord(draft: ReportDraft, nowIso: string): Acciden
     throw new Error(`Invalid report draft: ${result.code}`);
   }
 
+  const features = cleanFeatures(draft.features);
+
   return {
     latitude: result.lat,
     longitude: result.lng,
@@ -55,5 +62,25 @@ export function buildAccidentRecord(draft: ReportDraft, nowIso: string): Acciden
     vehicle_count: draft.vehicleCount,
     casualty_count: draft.casualtyCount,
     created_at: nowIso,
+    ...(features ? { features } : {}),
   };
+}
+
+export function cleanFeatures(
+  features?: AccidentFeatures
+): AccidentFeatures | undefined {
+  if (!features) return undefined;
+  const cleaned: AccidentFeatures = {};
+  for (const key of [
+    'lighting_condition',
+    'road_surface',
+    'traffic_density',
+    'suspected_cause',
+  ] as const) {
+    const value = features[key]?.trim();
+    if (value) {
+      cleaned[key] = value;
+    }
+  }
+  return Object.keys(cleaned).length > 0 ? cleaned : undefined;
 }

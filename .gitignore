@@ -78,3 +78,6 @@ backend/ml/model_registry/
 **/firebase-debug.log
 *.log
 
+
+# stray root lockfile (no root package.json)
+/package-lock.json

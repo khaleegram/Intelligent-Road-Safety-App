@@ -21,9 +21,22 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         'expo-notifications',
         {},
       ],
+      'expo-status-bar',
+      'expo-font',
+      [
+        'expo-splash-screen',
+        {
+          image: './assets/splash-icon.png',
+          resizeMode: 'contain',
+          backgroundColor: '#ffffff',
+        },
+      ],
     ],
     extra: {
       ...config.extra,
+      eas: {
+        projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? '',
+      },
       mapboxToken: process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '',
       adminRoleEndpoint: process.env.EXPO_PUBLIC_ADMIN_ROLE_ENDPOINT ?? '',
       appCheckDebugToken: process.env.EXPO_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN ?? '',

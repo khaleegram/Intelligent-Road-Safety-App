@@ -25,7 +25,7 @@ export default function Avatar({ initials, size = 'md' }: AvatarProps) {
         {
           width: dimension,
           height: dimension,
-          borderRadius: theme.tokens.radius.full,
+          borderRadius: theme.radius.full,
         },
       ]}
     >
@@ -38,14 +38,14 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       borderWidth: 1,
-      borderColor: theme.tokens.color.border,
-      backgroundColor: theme.tokens.color.surfaceElevated,
+      borderColor: theme.color.border,
+      backgroundColor: theme.color.surfaceElevated,
       alignItems: 'center',
       justifyContent: 'center',
     },
     initials: {
-      color: theme.tokens.color.textPrimary,
-      fontSize: theme.tokens.typography.fontSize.xs,
-      fontWeight: theme.tokens.typography.fontWeight.bold,
+      color: theme.color.textPrimary,
+      fontSize: theme.type.caption.fontSize,
+      fontWeight: '700',
     },
   });

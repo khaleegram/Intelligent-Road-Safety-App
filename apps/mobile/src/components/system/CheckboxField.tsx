@@ -32,12 +32,12 @@ export default function CheckboxField({
         style={[
           styles.box,
           checked
-            ? { backgroundColor: theme.tokens.color.primary, borderColor: theme.tokens.color.primary }
+            ? { backgroundColor: theme.color.primary, borderColor: theme.color.primary }
             : null,
         ]}
       >
         {checked ? (
-          <Ionicons name="checkmark" size={14} color={theme.tokens.color.textInverse} />
+          <Ionicons name="checkmark" size={14} color={theme.color.textInverse} />
         ) : null}
       </View>
       <Text style={styles.label}>{label}</Text>
@@ -51,21 +51,21 @@ const createStyles = (theme: Theme) =>
       minHeight: 44,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
     },
     box: {
       width: 22,
       height: 22,
-      borderRadius: theme.tokens.radius.sm,
+      borderRadius: theme.radius.sm,
       borderWidth: 1,
-      borderColor: theme.tokens.color.border,
-      backgroundColor: theme.tokens.color.surface,
+      borderColor: theme.color.border,
+      backgroundColor: theme.color.surface,
       alignItems: 'center',
       justifyContent: 'center',
     },
     label: {
-      fontSize: theme.tokens.typography.fontSize.sm,
-      color: theme.tokens.color.textPrimary,
+      fontSize: theme.type.body.fontSize,
+      color: theme.color.textPrimary,
     },
     disabled: {
       opacity: 0.5,

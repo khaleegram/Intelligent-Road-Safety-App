@@ -57,8 +57,8 @@ export default function RootNavigator() {
 
   if (authLoading) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.bg }]}>
-        <ActivityIndicator color={theme.colors.accent} />
+      <View style={[styles.loadingContainer, { backgroundColor: theme.color.background }]}>
+        <ActivityIndicator color={theme.color.primary} />
       </View>
     );
   }
@@ -69,10 +69,10 @@ export default function RootNavigator() {
         ...DefaultTheme,
         colors: {
           ...DefaultTheme.colors,
-          background: theme.colors.bg,
-          card: theme.colors.surface,
-          border: theme.colors.border,
-          text: theme.colors.text,
+          background: theme.color.background,
+          card: theme.color.surface,
+          border: theme.color.border,
+          text: theme.color.textPrimary,
         },
       }}
     >

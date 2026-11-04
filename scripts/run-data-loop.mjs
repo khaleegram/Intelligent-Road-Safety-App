@@ -28,7 +28,7 @@ function run(cwd, command, args) {
   }
 }
 
-run('backend/pipeline', 'node', ['compute-hotspots.mjs', '--threshold', '3', '--grid', '0.01']);
+run('backend/pipeline', 'node', ['compute-hotspots.mjs', '--threshold', '2', '--grid', '0.03']);
 run('backend/ml', 'node', ['publish-risk-predictions.mjs']);
 if (!skipPush) {
   run('backend/pipeline', 'node', ['notify-push.mjs']);

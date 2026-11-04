@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 
 import { type Theme, useTheme } from '../theme';
@@ -22,11 +23,9 @@ export default function GradientChip({
   const { theme } = useTheme();
   const styles = createStyles(theme);
 
-  const backgroundColor = active
-    ? theme.tokens.color.primary
-    : theme.tokens.color.surfaceElevated;
-  const borderColor = active ? theme.tokens.color.primary : theme.tokens.color.border;
-  const textColor = active ? theme.tokens.color.textInverse : theme.tokens.color.textPrimary;
+  const backgroundColor = active ? theme.color.primary : theme.color.surfaceElevated;
+  const borderColor = active ? theme.color.primary : theme.color.border;
+  const textColor = active ? theme.color.textInverse : theme.color.textPrimary;
 
   return (
     <Pressable
@@ -34,6 +33,8 @@ export default function GradientChip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ selected: active, disabled }}
+      hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
       style={({ pressed }) => [
         styles.base,
         { backgroundColor, borderColor },
@@ -42,7 +43,10 @@ export default function GradientChip({
         style,
       ]}
     >
-      <Text style={[styles.label, { color: textColor }]}>{label}</Text>
+      {active ? <Ionicons name="checkmark" size={14} color={textColor} /> : null}
+      <Text numberOfLines={1} style={[styles.label, { color: textColor }]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -50,10 +54,12 @@ export default function GradientChip({
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     base: {
-      minHeight: 40,
-      paddingHorizontal: theme.tokens.spacing[3],
+      minHeight: 44,
+      flexDirection: 'row',
+      gap: 6,
+      paddingHorizontal: theme.space[3],
       borderWidth: 1,
-      borderRadius: theme.tokens.radius.full,
+      borderRadius: theme.radius.full,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -61,10 +67,11 @@ const createStyles = (theme: Theme) =>
       opacity: 0.5,
     },
     pressed: {
-      opacity: 0.9,
+      opacity: 0.85,
     },
     label: {
-      fontSize: theme.tokens.typography.fontSize.xs,
-      fontWeight: theme.tokens.typography.fontWeight.medium,
+      fontSize: theme.type.label.fontSize,
+      lineHeight: theme.type.label.lineHeight,
+      fontWeight: theme.type.label.fontWeight,
     },
   });

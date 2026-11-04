@@ -4,6 +4,7 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "target": "es2020",
+    "rootDir": "src",
     "outDir": ".test-dist",
     "types": ["node"],
     "noEmit": false

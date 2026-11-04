@@ -1,12 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import Button from '../components/Button';
 import IslandBar from '../components/IslandBar';
-import IslandCard from '../components/IslandCard';
 import InputField from '../components/system/InputField';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { submitFeedback } from '../services/feedback';
@@ -60,14 +60,14 @@ export default function FeedbackScreen() {
         stickyHeaderIndices={[0]}
         scrollEventThrottle={16}
         onScroll={(event) => {
-          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.space[2];
           if (shouldCompact !== compactBar) {
             setCompactBar(shouldCompact);
           }
         }}
         contentContainerStyle={[
           styles.content,
-          { paddingHorizontal: contentPadding, paddingBottom: theme.spacing.lg + insets.bottom },
+          { paddingHorizontal: contentPadding, paddingBottom: theme.space[6] + insets.bottom },
         ]}
       >
         <View style={styles.headerWrap}>
@@ -78,6 +78,7 @@ export default function FeedbackScreen() {
             mode="public"
             compact={compactBar}
             isAdmin={isAdmin}
+            onBack={() => navigation.goBack()}
             onToggle={(next) => {
               if (next === 'admin') {
                 navigation.navigate('Admin', undefined);
@@ -86,7 +87,7 @@ export default function FeedbackScreen() {
           />
         </View>
 
-        <IslandCard style={styles.card}>
+        <View style={styles.group}>
           <InputField
             label={t('feedback.message')}
             value={message}
@@ -97,26 +98,35 @@ export default function FeedbackScreen() {
           />
 
           <Text style={styles.label}>{t('feedback.rating')}</Text>
-          <View style={styles.ratingRow}>
-            {RATINGS.map((value) => (
-              <Button
-                key={value}
-                label={String(value)}
-                size="sm"
-                variant={rating === value ? 'primary' : 'secondary'}
-                onPress={() => setRating(value)}
-              />
-            ))}
+          <View style={styles.starRow}>
+            {RATINGS.map((value) => {
+              const active = rating != null && value <= rating;
+              return (
+                <Pressable
+                  key={value}
+                  accessibilityRole="radio"
+                  accessibilityLabel={String(value)}
+                  accessibilityState={{ selected: rating === value }}
+                  onPress={() => setRating(value)}
+                  style={styles.starButton}
+                >
+                  <Ionicons
+                    name={active ? 'star' : 'star-outline'}
+                    size={30}
+                    color={active ? theme.color.primary : theme.color.textSecondary}
+                  />
+                </Pressable>
+              );
+            })}
           </View>
 
           <Button
             label={t('feedback.submit')}
             onPress={handleSubmit}
-            disabled={submitting}
+            loading={submitting}
+            fullWidth
           />
-        </IslandCard>
-
-        <Button label={t('common.back')} variant="secondary" onPress={() => navigation.goBack()} />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -126,32 +136,50 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.bg,
+      backgroundColor: theme.color.background,
     },
     content: {
-      padding: theme.tokens.spacing[4],
-      gap: theme.tokens.spacing[4],
+      padding: theme.space[4],
+      gap: theme.space[4],
     },
     headerWrap: {
-      marginBottom: theme.tokens.spacing[2],
-      backgroundColor: theme.tokens.color.background,
-      paddingBottom: theme.tokens.spacing[2],
+      marginBottom: theme.space[2],
+      backgroundColor: theme.color.background,
+      paddingBottom: theme.space[2],
     },
     card: {
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
+    },
+    group: {
+      gap: theme.space[3],
+      padding: theme.space[4],
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
     },
     messageInput: {
       minHeight: 120,
       textAlignVertical: 'top',
     },
     label: {
-      fontSize: theme.tokens.typography.fontSize.sm,
-      fontWeight: theme.tokens.typography.fontWeight.semibold,
-      color: theme.tokens.color.textPrimary,
+      fontSize: theme.type.body.fontSize,
+      fontWeight: '600',
+      color: theme.color.textPrimary,
+    },
+    starRow: {
+      flexDirection: 'row',
+      gap: theme.space[2],
+    },
+    starButton: {
+      width: 48,
+      height: 48,
+      borderRadius: theme.radius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.color.surfaceElevated,
     },
     ratingRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
     },
   });

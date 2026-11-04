@@ -96,20 +96,46 @@ export default function SosScreen() {
     await Share.share({ message });
   };
 
+  const confirmDelete = (id: string) => {
+    Alert.alert(t('sos.deleteConfirmTitle'), t('sos.deleteConfirmText'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('sos.delete'),
+        style: 'destructive',
+        onPress: () => {
+          void handleDelete(id);
+        },
+      },
+    ]);
+  };
+
+  const confirmSos = () => {
+    Alert.alert(t('sos.confirmTitle'), t('sos.confirmText'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('sos.trigger'),
+        style: 'destructive',
+        onPress: () => {
+          void triggerSos();
+        },
+      },
+    ]);
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
         stickyHeaderIndices={[0]}
         scrollEventThrottle={16}
         onScroll={(event) => {
-          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.space[2];
           if (shouldCompact !== compactBar) {
             setCompactBar(shouldCompact);
           }
         }}
         contentContainerStyle={[
           styles.content,
-          { paddingHorizontal: contentPadding, paddingBottom: theme.spacing.lg + insets.bottom },
+          { paddingHorizontal: contentPadding, paddingBottom: theme.space[6] + insets.bottom },
         ]}
       >
         <View style={styles.headerWrap}>
@@ -129,7 +155,7 @@ export default function SosScreen() {
         </View>
 
         <IslandCard style={styles.card}>
-          <Button label={t('sos.trigger')} onPress={triggerSos} />
+          <Button label={t('sos.trigger')} onPress={confirmSos} variant="destructive" />
           <Button
             label={t('sos.callFrsc')}
             variant="secondary"
@@ -163,7 +189,11 @@ export default function SosScreen() {
                     label={t('sos.delete')}
                     variant="ghost"
                     size="sm"
-                    onPress={() => handleDelete(contact.id)}
+                    onPress={() => {
+                      if (contact.id) {
+                        confirmDelete(contact.id);
+                      }
+                    }}
                   />
                 </View>
               ))
@@ -209,30 +239,30 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.bg,
+      backgroundColor: theme.color.background,
     },
     content: {
-      padding: theme.tokens.spacing[4],
-      gap: theme.tokens.spacing[4],
+      padding: theme.space[4],
+      gap: theme.space[4],
     },
     headerWrap: {
-      marginBottom: theme.tokens.spacing[2],
-      backgroundColor: theme.tokens.color.background,
-      paddingBottom: theme.tokens.spacing[2],
+      marginBottom: theme.space[2],
+      backgroundColor: theme.color.background,
+      paddingBottom: theme.space[2],
     },
     section: {
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
     },
     sectionTitle: {
-      fontSize: theme.tokens.typography.fontSize.xs,
-      fontWeight: theme.tokens.typography.fontWeight.bold,
-      color: theme.tokens.color.textPrimary,
+      fontSize: theme.type.caption.fontSize,
+      fontWeight: '700',
+      color: theme.color.textPrimary,
       textTransform: 'uppercase',
     },
     card: {
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
     },
     contactRow: {
-      gap: theme.tokens.spacing[1],
+      gap: theme.space[1],
     },
   });

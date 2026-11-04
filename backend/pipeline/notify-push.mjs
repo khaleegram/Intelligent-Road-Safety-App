@@ -7,7 +7,8 @@
  *   FIREBASE_* or GOOGLE_APPLICATION_CREDENTIALS
  *   SKIP_PUSH=1 to no-op
  */
-import admin from 'firebase-admin';
+import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 if (process.env.SKIP_PUSH === '1') {
   console.log('SKIP_PUSH=1 — notify-push skipped');
@@ -15,21 +16,21 @@ if (process.env.SKIP_PUSH === '1') {
 }
 
 function initAdmin() {
-  if (admin.apps.length) return;
+  if (getApps().length) return;
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
   if (projectId && clientEmail && privateKey) {
-    admin.initializeApp({
-      credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+    initializeApp({
+      credential: cert({ projectId, clientEmail, privateKey }),
     });
     return;
   }
-  admin.initializeApp({ credential: admin.credential.applicationDefault() });
+  initializeApp({ credential: applicationDefault() });
 }
 
 initAdmin();
-const db = admin.firestore();
+const db = getFirestore();
 
 const usersSnap = await db.collection('users').get();
 const tokens = [];

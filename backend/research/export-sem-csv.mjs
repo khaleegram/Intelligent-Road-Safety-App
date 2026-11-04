@@ -11,7 +11,8 @@ import { createWriteStream } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import admin from 'firebase-admin';
+import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.join(__dirname, 'output');
@@ -25,21 +26,21 @@ const limitIdx = args.indexOf('--limit');
 const limit = limitIdx >= 0 ? Number(args[limitIdx + 1]) : undefined;
 
 function initAdmin() {
-  if (admin.apps.length) return;
+  if (getApps().length) return;
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
   if (projectId && clientEmail && privateKey) {
-    admin.initializeApp({
-      credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+    initializeApp({
+      credential: cert({ projectId, clientEmail, privateKey }),
     });
     return;
   }
-  admin.initializeApp({ credential: admin.credential.applicationDefault() });
+  initializeApp({ credential: applicationDefault() });
 }
 
 initAdmin();
-const db = admin.firestore();
+const db = getFirestore();
 
 const FEATURE_KEYS = [
   'lighting_condition',

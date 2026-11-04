@@ -3,6 +3,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   orderBy,
   query,
   runTransaction,
@@ -11,9 +12,17 @@ import {
 } from 'firebase/firestore';
 
 import { auth, db } from './firebase';
-import type { AccidentRecord, AdminAlert, HotspotRecord, UserProfile } from '../types';
+import type {
+  AccidentFeatures,
+  AccidentRecord,
+  AdminAlert,
+  HotspotRecord,
+  SemInsight,
+  UserProfile,
+} from '../types';
 import { storage } from './storage';
 import { generateRequestId } from './requestId';
+import { cleanFeatures } from './reportValidation';
 
 const accidentsCollection = collection(db, 'accidents');
 const hotspotsCollection = collection(db, 'hotspots');
@@ -21,46 +30,107 @@ const usersCollection = collection(db, 'users');
 const alertsCollection = collection(db, 'admin_alerts');
 const HOTSPOTS_CACHE_KEY = 'hotspots_cache_v1';
 const ACCIDENTS_CACHE_KEY = 'accidents_cache_v1';
+const MEMO_TTL_MS = 60_000;
 
-export async function fetchAccidents(): Promise<AccidentRecord[]> {
-  try {
-    const snapshot = await getDocs(
-      query(accidentsCollection, orderBy('created_at', 'desc'))
-    );
-    const data = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Omit<AccidentRecord, 'id'>),
-    }));
-    await storage.set(ACCIDENTS_CACHE_KEY, data);
-    return data;
-  } catch (error) {
-    console.error('Failed to fetch accidents', error);
-    const cached = await storage.get<AccidentRecord[]>(ACCIDENTS_CACHE_KEY, []);
-    if (cached.length > 0) {
-      return cached;
-    }
-    throw new Error('Unable to load accident data. Check your connection.');
-  }
+let accidentsMemo: AccidentRecord[] | null = null;
+let accidentsMemoAt = 0;
+let accidentsRequest: Promise<AccidentRecord[]> | null = null;
+
+let hotspotsMemo: HotspotRecord[] | null = null;
+let hotspotsMemoAt = 0;
+let hotspotsRequest: Promise<HotspotRecord[]> | null = null;
+
+/** Instant local snapshot used to paint the UI before the network answers. */
+export async function readCachedAccidents(): Promise<AccidentRecord[]> {
+  return storage.get<AccidentRecord[]>(ACCIDENTS_CACHE_KEY, []);
 }
 
-export async function fetchHotspots(): Promise<HotspotRecord[]> {
-  try {
-    const snapshot = await getDocs(
-      query(hotspotsCollection, orderBy('last_updated', 'desc'))
-    );
-    const data = snapshot.docs.map((doc) => ({
-      ...(doc.data() as HotspotRecord),
-    }));
-    await storage.set(HOTSPOTS_CACHE_KEY, data);
-    return data;
-  } catch (error) {
-    console.error('Failed to fetch hotspots', error);
-    const cached = await storage.get<HotspotRecord[]>(HOTSPOTS_CACHE_KEY, []);
-    if (cached.length > 0) {
-      return cached;
-    }
-    throw new Error('Unable to load hotspots. Check your connection.');
+export async function readCachedHotspots(): Promise<HotspotRecord[]> {
+  return storage.get<HotspotRecord[]>(HOTSPOTS_CACHE_KEY, []);
+}
+
+export function invalidateAccidentCache(): void {
+  accidentsMemo = null;
+  accidentsMemoAt = 0;
+}
+
+export async function fetchAccidents(options: { force?: boolean } = {}): Promise<AccidentRecord[]> {
+  const now = Date.now();
+  if (!options.force && accidentsMemo && now - accidentsMemoAt < MEMO_TTL_MS) {
+    return accidentsMemo;
   }
+  if (!options.force && accidentsRequest) {
+    return accidentsRequest;
+  }
+
+  const request = (async () => {
+    try {
+      const snapshot = await getDocs(
+        query(accidentsCollection, orderBy('created_at', 'desc'))
+      );
+      const data = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<AccidentRecord, 'id'>),
+      }));
+      accidentsMemo = data;
+      accidentsMemoAt = Date.now();
+      await storage.set(ACCIDENTS_CACHE_KEY, data);
+      return data;
+    } catch (error) {
+      console.error('Failed to fetch accidents', error);
+      const cached = await storage.get<AccidentRecord[]>(ACCIDENTS_CACHE_KEY, []);
+      if (cached.length > 0) {
+        accidentsMemo = cached;
+        accidentsMemoAt = Date.now();
+        return cached;
+      }
+      throw new Error('Unable to load accident data. Check your connection.');
+    } finally {
+      accidentsRequest = null;
+    }
+  })();
+
+  accidentsRequest = request;
+  return request;
+}
+
+export async function fetchHotspots(options: { force?: boolean } = {}): Promise<HotspotRecord[]> {
+  const now = Date.now();
+  if (!options.force && hotspotsMemo && now - hotspotsMemoAt < MEMO_TTL_MS) {
+    return hotspotsMemo;
+  }
+  if (!options.force && hotspotsRequest) {
+    return hotspotsRequest;
+  }
+
+  const request = (async () => {
+    try {
+      const snapshot = await getDocs(
+        query(hotspotsCollection, orderBy('last_updated', 'desc'))
+      );
+      const data = snapshot.docs.map((doc) => ({
+        ...(doc.data() as HotspotRecord),
+      }));
+      hotspotsMemo = data;
+      hotspotsMemoAt = Date.now();
+      await storage.set(HOTSPOTS_CACHE_KEY, data);
+      return data;
+    } catch (error) {
+      console.error('Failed to fetch hotspots', error);
+      const cached = await storage.get<HotspotRecord[]>(HOTSPOTS_CACHE_KEY, []);
+      if (cached.length > 0) {
+        hotspotsMemo = cached;
+        hotspotsMemoAt = Date.now();
+        return cached;
+      }
+      throw new Error('Unable to load hotspots. Check your connection.');
+    } finally {
+      hotspotsRequest = null;
+    }
+  })();
+
+  hotspotsRequest = request;
+  return request;
 }
 
 export async function createAccident(input: AccidentRecord): Promise<string> {
@@ -72,23 +142,66 @@ export async function createAccident(input: AccidentRecord): Promise<string> {
 
     const requestId = input.request_id ?? generateRequestId();
     const accidentRef = doc(db, 'accidents', requestId);
+    const createdAt = input.created_at ?? new Date().toISOString();
+    // Only write fields allowed by the `accidents` security rule.
     const payload = {
-      ...input,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      timestamp: input.timestamp,
+      severity: input.severity,
+      road_type: input.road_type,
+      weather: input.weather,
+      vehicle_count: input.vehicle_count,
+      casualty_count: input.casualty_count,
+      created_at: createdAt,
       request_id: requestId,
-      created_at: input.created_at ?? new Date().toISOString(),
       reporter_uid: reporterUid,
     };
+    const cleanedFeatures = cleanFeatures(input.features);
+    const featurePayload: (AccidentFeatures & {
+      request_id: string;
+      reporter_uid: string;
+      created_at: string;
+    }) | null = cleanedFeatures
+      ? {
+          ...cleanedFeatures,
+          request_id: requestId,
+          reporter_uid: reporterUid,
+          created_at: createdAt,
+        }
+      : null;
 
     await runTransaction(db, async (transaction) => {
       const existing = await transaction.get(accidentRef);
       if (!existing.exists()) {
         transaction.set(accidentRef, payload);
+        if (featurePayload) {
+          transaction.set(doc(db, 'accident_features', requestId), featurePayload);
+        }
       }
     });
+    invalidateAccidentCache();
     return requestId;
   } catch (error) {
     console.error('Failed to create accident', error);
     throw new Error('Unable to submit accident report. Try again.');
+  }
+}
+
+export async function fetchSemInsights(): Promise<SemInsight | null> {
+  try {
+    const snapshot = await getDocs(
+      query(collection(db, 'sem_insights'), limit(1))
+    );
+    if (snapshot.empty) return null;
+    const item = snapshot.docs[0];
+    return {
+      id: item.id,
+      ...(item.data() as Omit<SemInsight, 'id'>),
+    };
+  } catch (error) {
+    console.error('Failed to fetch SEM insights', error);
+    return null;
   }
 }
 
@@ -169,6 +282,7 @@ export async function updateAccidentVerification(params: {
       verified_at: serverTimestamp(),
       notes: params.notes?.trim() ?? '',
     });
+    invalidateAccidentCache();
   } catch (error) {
     console.error('Failed to update verification', error);
     throw new Error('Unable to update verification status.');

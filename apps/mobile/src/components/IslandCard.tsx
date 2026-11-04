@@ -24,27 +24,25 @@ export default function IslandCard({
 
   const backgroundColor =
     variant === 'hero'
-      ? theme.tokens.color.primary
+      ? theme.color.surfaceElevated
       : variant === 'accent'
-        ? theme.tokens.color.surfaceElevated
+        ? theme.color.surfaceElevated
         : variant === 'success'
-          ? theme.tokens.color.surfaceElevated
+          ? theme.color.surfaceElevated
           : variant === 'warning'
-            ? theme.tokens.color.surfaceElevated
-            : theme.tokens.color.surface;
+            ? theme.color.surfaceElevated
+            : theme.color.surface;
 
   const borderColor =
-    variant === 'hero'
-      ? theme.tokens.color.primaryHover
-      : variant === 'accent'
-        ? theme.tokens.color.primary
-        : variant === 'success'
-          ? theme.tokens.color.success
-          : variant === 'warning'
-            ? theme.tokens.color.warning
-            : theme.tokens.color.border;
+    variant === 'hero' || variant === 'accent'
+      ? theme.color.primary
+      : variant === 'success'
+        ? theme.color.success
+        : variant === 'warning'
+          ? theme.color.warning
+          : theme.color.border;
 
-  const shadowLevel = variant === 'hero' ? theme.tokens.elevation.md : theme.tokens.elevation.sm;
+  const shadowLevel = variant === 'card' ? theme.elevation.flat : theme.elevation.raised;
 
   return (
     <View
@@ -71,11 +69,11 @@ export default function IslandCard({
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
-      borderWidth: 1,
-      borderRadius: theme.tokens.radius.lg,
+      borderWidth: 0,
+      borderRadius: theme.radius.lg,
       overflow: 'hidden',
     },
     content: {
-      padding: theme.tokens.spacing[4],
+      padding: theme.space[4],
     },
   });

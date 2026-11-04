@@ -1,17 +1,19 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useEffect, useState } from 'react';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   onAuthStateChanged,
   signOut,
   type User,
 } from 'firebase/auth';
 
-import Button from '../components/Button';
 import IslandBar from '../components/IslandBar';
-import IslandCard from '../components/IslandCard';
+import OptionGrid from '../components/OptionGrid';
+import SegmentedControl from '../components/SegmentedControl';
+import ToggleSwitch from '../components/system/ToggleSwitch';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { auth } from '../services/firebase';
@@ -20,14 +22,13 @@ import { offlineQueue } from '../services/offlineQueue';
 import { storage } from '../services/storage';
 import { isUserAdmin, upsertUserProfile } from '../services/userProfile';
 import { useI18n } from '../i18n';
-import { type Theme, useTheme } from '../theme';
+import { type Theme, type ThemePreference, useTheme } from '../theme';
 
 export default function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { theme, mode, preference, setPreference } = useTheme();
+  const { theme, preference, setPreference } = useTheme();
   const { t, language, setLanguage } = useI18n();
   const { contentPadding } = useBreakpoint();
-  const insets = useSafeAreaInsets();
   const styles = createStyles(theme);
   const [queuedCount, setQueuedCount] = useState(0);
   const [authUser, setAuthUser] = useState<User | null>(null);
@@ -90,20 +91,57 @@ export default function SettingsScreen() {
     }
   };
 
+  const confirmSignOut = () => {
+    Alert.alert(
+      t('settings.signOutConfirmTitle'),
+      t('settings.signOutConfirmText'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('settings.signOut'),
+          style: 'destructive',
+          onPress: () => {
+            void handleSignOut();
+          },
+        },
+      ]
+    );
+  };
+
+  const confirmClearCache = () => {
+    Alert.alert(
+      t('settings.clearCacheConfirmTitle'),
+      t('settings.clearCacheConfirmText'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('settings.clearCache'),
+          style: 'destructive',
+          onPress: () => {
+            void refreshCache();
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
         stickyHeaderIndices={[0]}
         scrollEventThrottle={16}
         onScroll={(event) => {
-          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.space[2];
           if (shouldCompact !== compactBar) {
             setCompactBar(shouldCompact);
           }
         }}
         contentContainerStyle={[
           styles.content,
-          { paddingHorizontal: contentPadding, paddingBottom: theme.spacing.lg + insets.bottom },
+          {
+            paddingHorizontal: contentPadding,
+            paddingBottom: theme.space[8],
+          },
         ]}
       >
         <View style={styles.headerWrap}>
@@ -122,242 +160,413 @@ export default function SettingsScreen() {
           />
         </View>
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('settings.account')}</Text>
+          <View style={styles.group}>
+            {authUser ? (
+              <View style={styles.accountRow}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {(authUser.email?.[0] ?? '?').toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.rowBody}>
+                  <Text style={styles.rowTitle} numberOfLines={1}>
+                    {authUser.email}
+                  </Text>
+                  <Text style={styles.rowSubtitle}>
+                    {isAdmin ? t('nav.admin') : t('settings.member')}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.emptyText}>{t('admin.signInPrompt')}</Text>
+            )}
+            <View style={styles.divider} />
+            <SettingRow
+              icon="log-out-outline"
+              title={authLoading ? t('settings.signingOut') : t('settings.signOut')}
+              onPress={confirmSignOut}
+              disabled={authLoading}
+              destructive
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.general')}</Text>
-          <IslandCard style={styles.card}>
-            <Text style={styles.label}>{t('settings.theme')}</Text>
-            <Text style={styles.value}>
-              {preference === 'system'
-                ? t('settings.system')
-                : mode === 'light'
-                  ? t('settings.light')
-                  : t('settings.dark')}
-            </Text>
-            <View style={styles.languageRow}>
-              {(['system', 'light', 'dark'] as const).map((option) => (
-                <Button
-                  key={option}
-                  label={
-                    option === 'system'
-                      ? t('settings.themeSystem')
-                      : option === 'light'
-                        ? t('settings.themeLight')
-                        : t('settings.themeDark')
-                  }
-                  variant={preference === option ? 'primary' : 'secondary'}
-                  onPress={() => setPreference(option)}
-                />
-              ))}
+          <View style={styles.group}>
+            <View style={styles.groupBlock}>
+              <Text style={styles.label}>{t('settings.theme')}</Text>
+              <SegmentedControl
+                accessibilityLabel={t('settings.theme')}
+                value={preference}
+                onChange={(value) => setPreference(value as ThemePreference)}
+                options={[
+                  { value: 'system', label: t('settings.themeSystem') },
+                  { value: 'light', label: t('settings.themeLight') },
+                  { value: 'dark', label: t('settings.themeDark') },
+                ]}
+              />
             </View>
-          </IslandCard>
-          <IslandCard style={styles.card}>
-            <Text style={styles.label}>{t('settings.language')}</Text>
-            <Text style={styles.value}>{t(`language.${language}`)}</Text>
-            <View style={styles.languageRow}>
-              {(['en', 'ha', 'yo', 'ig'] as const).map((code) => (
-                <Button
-                  key={code}
-                  label={t(`language.${code}`)}
-                  variant={language === code ? 'primary' : 'secondary'}
-                  onPress={() => setLanguage(code)}
-                />
-              ))}
+            <View style={styles.divider} />
+            <View style={styles.groupBlock}>
+              <Text style={styles.label}>{t('settings.language')}</Text>
+              <OptionGrid
+                columns={2}
+                accessibilityLabel={t('settings.language')}
+                value={language}
+                onChange={(value) => setLanguage(value as 'en' | 'ha' | 'yo' | 'ig')}
+                options={[
+                  { value: 'en', label: t('language.en') },
+                  { value: 'ha', label: t('language.ha') },
+                  { value: 'yo', label: t('language.yo') },
+                  { value: 'ig', label: t('language.ig') },
+                ]}
+              />
             </View>
-          </IslandCard>
+          </View>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.alerts')}</Text>
-          <IslandCard style={styles.card}>
-            <Text style={styles.label}>{t('settings.alertsEnabled')}</Text>
-            <Text style={styles.value}>
-              {alertsEnabled ? t('common.enabled') : t('common.disabled')}
-            </Text>
-            <Button
-              label={alertsEnabled ? t('common.disabled') : t('common.enabled')}
-              variant="secondary"
-              onPress={async () => {
-                const next = !alertsEnabled;
-                setAlertsEnabled(next);
-                await setAlertPreferences({ enabled: next, radiusMeters: alertRadius });
-              }}
-            />
-            <Text style={styles.label}>{t('settings.alertRadius')}</Text>
-            <View style={styles.languageRow}>
-              {[150, 200, 400].map((meters) => (
-                <Button
-                  key={meters}
-                  label={`${meters}m`}
-                  variant={alertRadius === meters ? 'primary' : 'secondary'}
-                  onPress={async () => {
-                    setAlertRadius(meters);
-                    await setAlertPreferences({ enabled: alertsEnabled, radiusMeters: meters });
-                  }}
-                />
-              ))}
+          <View style={styles.group}>
+            <View style={styles.row}>
+              <View style={styles.rowBody}>
+                <Text style={styles.rowTitle}>{t('settings.alertsEnabled')}</Text>
+                <Text style={styles.rowSubtitle}>
+                  {alertsEnabled ? t('common.enabled') : t('common.disabled')}
+                </Text>
+              </View>
+              <ToggleSwitch
+                value={alertsEnabled}
+                accessibilityLabel={t('settings.alertsEnabled')}
+                onValueChange={async (next) => {
+                  setAlertsEnabled(next);
+                  await setAlertPreferences({ enabled: next, radiusMeters: alertRadius });
+                }}
+              />
             </View>
-          </IslandCard>
+            <View style={styles.divider} />
+            <View style={styles.groupBlock}>
+              <Text style={styles.label}>{t('settings.alertRadius')}</Text>
+              <SegmentedControl
+                accessibilityLabel={t('settings.alertRadius')}
+                value={String(alertRadius)}
+                onChange={(value) => {
+                  const meters = Number(value);
+                  setAlertRadius(meters);
+                  void setAlertPreferences({
+                    enabled: alertsEnabled,
+                    radiusMeters: meters,
+                  });
+                }}
+                options={[150, 200, 400].map((meters) => ({
+                  value: String(meters),
+                  label: `${meters} m`,
+                }))}
+              />
+            </View>
+          </View>
         </View>
 
         <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('settings.data')}</Text>
-        <IslandCard style={styles.card}>
-          <Text style={styles.label}>{t('settings.offlineCache')}</Text>
-          <Text style={styles.value}>{t('settings.offlineCacheDesc')}</Text>
-          <Button
-            label={t('settings.clearCache')}
-            variant="secondary"
-            onPress={refreshCache}
-          />
-        </IslandCard>
-        <IslandCard style={styles.card}>
-          <Text style={styles.label}>{t('settings.queuedReports')}</Text>
-          <Text style={styles.value}>
-            {t('settings.waitingToSync', { count: queuedCount })}
-          </Text>
-          <Button
-            label={t('settings.syncNow')}
-            variant="secondary"
-            onPress={syncNow}
-          />
-        </IslandCard>
-      </View>
+          <Text style={styles.sectionTitle}>{t('settings.data')}</Text>
+          <View style={styles.group}>
+            <SettingRow
+              icon="cloud-upload-outline"
+              title={t('settings.queuedReports')}
+              subtitle={t('settings.waitingToSync', { count: queuedCount })}
+              onPress={syncNow}
+              trailing={<Text style={styles.rowAction}>{t('settings.syncNow')}</Text>}
+            />
+            <View style={styles.divider} />
+            <SettingRow
+              icon="trash-outline"
+              title={t('settings.offlineCache')}
+              subtitle={t('settings.offlineCacheDesc')}
+              onPress={confirmClearCache}
+              destructive
+            />
+          </View>
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('settings.modules')}</Text>
-        <IslandCard style={styles.card}>
-          <Button
-            label={t('settings.openSos')}
-            variant="secondary"
-            onPress={() => navigation.navigate('Sos')}
-          />
-          <Button
-            label={t('settings.openEducation')}
-            variant="secondary"
-            onPress={() => navigation.navigate('Education')}
-          />
-          <Button
-            label={t('settings.openMedication')}
-            variant="secondary"
-            onPress={() => navigation.navigate('Medication')}
-          />
-          <Button
-            label={t('settings.openFeedback')}
-            variant="secondary"
-            onPress={() => navigation.navigate('Feedback')}
-          />
-          <Button
-            label={t('settings.openBehaviour')}
-            variant="secondary"
-            onPress={() => navigation.navigate('Behaviour')}
-          />
-        </IslandCard>
-      </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('settings.modules')}</Text>
+          <View style={styles.group}>
+            <SettingRow
+              icon="alert-circle-outline"
+              title={t('settings.openSos')}
+              onPress={() => navigation.navigate('Sos')}
+            />
+            <View style={styles.divider} />
+            <SettingRow
+              icon="book-outline"
+              title={t('settings.openEducation')}
+              onPress={() => navigation.navigate('Education')}
+            />
+            <View style={styles.divider} />
+            <SettingRow
+              icon="medkit-outline"
+              title={t('settings.openMedication')}
+              onPress={() => navigation.navigate('Medication')}
+            />
+            <View style={styles.divider} />
+            <SettingRow
+              icon="chatbubble-ellipses-outline"
+              title={t('settings.openFeedback')}
+              onPress={() => navigation.navigate('Feedback')}
+            />
+            <View style={styles.divider} />
+            <SettingRow
+              icon="speedometer-outline"
+              title={t('settings.openBehaviour')}
+              onPress={() => navigation.navigate('Behaviour')}
+            />
+          </View>
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('settings.about')}</Text>
-        <IslandCard style={styles.card}>
-          <Text style={styles.label}>{t('settings.miniTitle')}</Text>
-          <Text style={styles.value}>
-            {t('settings.miniDesc')}
-          </Text>
-        </IslandCard>
-        <IslandCard style={styles.card}>
-          <Text style={styles.label}>{t('settings.adminDashboard')}</Text>
-          <Text style={styles.value}>{t('settings.adminDashboardDesc')}</Text>
-          <Button
-            label={isAdmin ? t('nav.admin') : t('common.adminRequired')}
-            variant="secondary"
-            onPress={() => navigation.navigate('Admin', undefined)}
-            disabled={!isAdmin}
-          />
-        </IslandCard>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('settings.adminAccess')}</Text>
-        <IslandCard style={styles.card}>
-          {authUser ? (
-            <>
-              <Text style={styles.label}>{t('settings.signedIn')}</Text>
-              <Text style={styles.value}>{authUser.email}</Text>
-              <Text style={styles.value}>
-                {t('settings.adminStatus', {
-                  value: isAdmin ? t('common.enabled') : t('common.disabled'),
-                })}
-              </Text>
-              <Button
-                label={authLoading ? t('settings.signingOut') : t('settings.signOut')}
-                variant="secondary"
-                onPress={handleSignOut}
-                disabled={authLoading}
-              />
-            </>
-          ) : (
-            <Text style={styles.value}>{t('admin.signInPrompt')}</Text>
-          )}
-        </IslandCard>
-      </View>
-
-      <View style={styles.actions}>
-        <Button
-          label={t('common.backToMap')}
-          onPress={() => navigation.navigate('Public', { screen: 'Map' })}
-        />
-        <Button
-          label={t('common.reportIncident')}
-          variant="secondary"
-          onPress={() => navigation.navigate('Public', { screen: 'Report' })}
-        />
-      </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('settings.about')}</Text>
+          <View style={styles.group}>
+            <SettingRow
+              icon="information-circle-outline"
+              title={t('settings.miniTitle')}
+              subtitle={t('settings.miniDesc')}
+            />
+            <View style={styles.divider} />
+            <SettingRow
+              icon="shield-outline"
+              title={t('settings.adminDashboard')}
+              subtitle={isAdmin ? t('settings.adminDashboardDesc') : t('common.adminRequired')}
+              onPress={() => navigation.navigate('Admin', undefined)}
+              disabled={!isAdmin}
+            />
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+type SettingRowProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle?: string;
+  onPress?: () => void;
+  trailing?: ReactNode;
+  disabled?: boolean;
+  destructive?: boolean;
+};
+
+function SettingRow({
+  icon,
+  title,
+  subtitle,
+  onPress,
+  trailing,
+  disabled = false,
+  destructive = false,
+}: SettingRowProps) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+  const tone = destructive ? theme.color.error : theme.color.primary;
+
+  const content = (
+    <>
+      <View style={styles.rowIcon}>
+        <Ionicons name={icon} size={18} color={tone} />
+      </View>
+      <View style={styles.rowBody}>
+        <Text style={[styles.rowTitle, destructive && { color: tone }]}>{title}</Text>
+        {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
+      </View>
+      {trailing ??
+        (onPress ? (
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color={theme.color.textSecondary}
+          />
+        ) : null)}
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={styles.row}>{content}</View>;
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.row,
+        pressed && styles.rowPressed,
+        disabled && styles.rowDisabled,
+      ]}
+    >
+      {content}
+    </Pressable>
+  );
+}
+
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.bg,
-  },
-  content: {
-    padding: theme.tokens.spacing[4],
-    gap: theme.tokens.spacing[4],
-  },
-  headerWrap: {
-    marginBottom: theme.tokens.spacing[2],
-    backgroundColor: theme.tokens.color.background,
-    paddingBottom: theme.tokens.spacing[2],
-  },
-  section: {
-    marginBottom: theme.tokens.spacing[2],
-  },
-  sectionTitle: {
-    fontSize: theme.tokens.typography.fontSize.xs,
-    fontWeight: theme.tokens.typography.fontWeight.bold,
-    color: theme.tokens.color.textPrimary,
-    marginBottom: theme.tokens.spacing[2],
-    textTransform: 'uppercase',
-  },
-  card: {
-    gap: theme.tokens.spacing[2],
-  },
-  label: {
-    fontSize: theme.tokens.typography.fontSize.sm,
-    fontWeight: theme.tokens.typography.fontWeight.semibold,
-    color: theme.tokens.color.textPrimary,
-  },
-  value: {
-    fontSize: theme.tokens.typography.fontSize.sm,
-    color: theme.tokens.color.textSecondary,
-  },
-  actions: {
-    marginTop: theme.tokens.spacing[3],
-    gap: theme.tokens.spacing[2],
-  },
-  languageRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.tokens.spacing[2],
-  },
+    container: {
+      flex: 1,
+      backgroundColor: theme.color.background,
+    },
+    content: {
+      padding: theme.space[4],
+      gap: theme.space[5],
+    },
+    headerWrap: {
+      marginBottom: theme.space[1],
+      backgroundColor: theme.color.background,
+      paddingBottom: theme.space[2],
+    },
+    section: {
+      gap: theme.space[2],
+    },
+    sectionTitle: {
+      fontSize: theme.type.label.fontSize,
+      fontWeight: theme.type.label.fontWeight,
+      color: theme.color.textSecondary,
+      marginLeft: theme.space[1],
+    },
+    group: {
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+      paddingHorizontal: theme.space[3],
+      paddingVertical: theme.space[1],
+    },
+    groupBlock: {
+      paddingVertical: theme.space[3],
+      gap: theme.space[2],
+    },
+    accountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.space[3],
+      paddingVertical: theme.space[3],
+    },
+    card: {
+      gap: 0,
+    },
+    groupInner: {
+      padding: theme.space[4],
+      gap: theme.space[3],
+    },
+    listInner: {
+      paddingHorizontal: theme.space[4],
+      paddingVertical: theme.space[1],
+    },
+    settingBlock: {
+      gap: 4,
+    },
+    label: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.color.textPrimary,
+    },
+    value: {
+      fontSize: theme.type.body.fontSize,
+      color: theme.color.textSecondary,
+    },
+    segment: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: theme.space[2],
+      marginTop: 6,
+    },
+    chip: {
+      minHeight: 38,
+      paddingHorizontal: 14,
+      borderRadius: theme.radius.full,
+      borderWidth: 1,
+      borderColor: theme.color.border,
+      backgroundColor: theme.color.surfaceElevated,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    chipActive: {
+      backgroundColor: theme.color.primary,
+      borderColor: theme.color.primary,
+    },
+    chipText: {
+      fontSize: theme.type.body.fontSize,
+      fontWeight: '600',
+      color: theme.color.textSecondary,
+    },
+    chipTextActive: {
+      color: theme.color.textInverse,
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.color.border,
+      marginVertical: 2,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.space[3],
+      paddingVertical: theme.space[3],
+      minHeight: 56,
+    },
+    rowPressed: {
+      opacity: 0.65,
+    },
+    rowDisabled: {
+      opacity: 0.45,
+    },
+    rowIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: theme.color.surfaceElevated,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    rowBody: {
+      flex: 1,
+      gap: 2,
+    },
+    rowTitle: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.color.textPrimary,
+    },
+    rowSubtitle: {
+      fontSize: theme.type.caption.fontSize,
+      lineHeight: 17,
+      color: theme.color.textSecondary,
+    },
+    rowAction: {
+      fontSize: theme.type.caption.fontSize,
+      fontWeight: '700',
+      color: theme.color.primary,
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: theme.radius.full,
+      backgroundColor: theme.color.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarText: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: theme.color.textInverse,
+    },
+    emptyText: {
+      paddingVertical: theme.space[3],
+      fontSize: theme.type.body.fontSize,
+      color: theme.color.textSecondary,
+    },
+    actions: {
+      marginTop: theme.space[1],
+      gap: theme.space[2],
+    },
   });

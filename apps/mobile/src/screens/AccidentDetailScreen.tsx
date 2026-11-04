@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 
 import Button from '../components/Button';
+import FactRow from '../components/FactRow';
 import IslandBar from '../components/IslandBar';
-import IslandCard from '../components/IslandCard';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { fetchAccidentById, fetchHotspots, updateAccidentVerification } from '../services/firestore';
 import { useAdminAccess } from '../hooks/useAdminAccess';
@@ -126,14 +127,14 @@ export default function AccidentDetailScreen() {
         stickyHeaderIndices={[0]}
         scrollEventThrottle={16}
         onScroll={(event) => {
-          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.space[2];
           if (shouldCompact !== compactBar) {
             setCompactBar(shouldCompact);
           }
         }}
         contentContainerStyle={[
           styles.content,
-          { paddingHorizontal: contentPadding, paddingBottom: theme.spacing.lg + insets.bottom },
+          { paddingHorizontal: contentPadding, paddingBottom: theme.space[6] + insets.bottom },
         ]}
       >
         <View style={styles.headerWrap}>
@@ -144,6 +145,7 @@ export default function AccidentDetailScreen() {
             mode={isAdmin ? 'admin' : 'public'}
             compact={compactBar}
             isAdmin={isAdmin}
+            onBack={() => navigation.goBack()}
             onToggle={(next) => {
               if (next === 'public') {
                 navigation.navigate('Public', { screen: 'Map' });
@@ -153,81 +155,112 @@ export default function AccidentDetailScreen() {
             }}
           />
         </View>
-        <IslandCard style={styles.card}>
-          <Text style={styles.label}>{t('detail.id')}</Text>
-          <Text style={styles.value}>{accident.id ?? accident.request_id ?? t('common.none')}</Text>
-          <Text style={styles.label}>{t('detail.severity')}</Text>
-          <Text style={styles.value}>{accident.severity}</Text>
-          <Text style={styles.label}>{t('detail.location')}</Text>
-          <Text style={styles.value}>
+        <View style={styles.hero}>
+          <Text style={styles.heroSeverity}>{accident.severity}</Text>
+          <Text style={styles.heroTime}>
+            {accident.created_at ?? accident.timestamp}
+          </Text>
+          <Text style={styles.heroLocation}>
             {accident.latitude.toFixed(5)}, {accident.longitude.toFixed(5)}
           </Text>
-          <Text style={styles.label}>{t('detail.roadWeather')}</Text>
-          <Text style={styles.value}>
-            {accident.road_type} - {accident.weather}
-          </Text>
-          <Text style={styles.label}>{t('detail.vehiclesCasualties')}</Text>
-          <Text style={styles.value}>
-            {accident.vehicle_count} / {accident.casualty_count}
-          </Text>
-          <Text style={styles.label}>{t('detail.reporter')}</Text>
-          <Text style={styles.value}>{accident.reporter_uid ?? t('common.none')}</Text>
-          <Text style={styles.label}>{t('detail.submitted')}</Text>
-          <Text style={styles.value}>{accident.created_at ?? accident.timestamp}</Text>
-        </IslandCard>
+        </View>
 
-        <IslandCard style={styles.card}>
-          <Text style={styles.sectionTitle}>{t('detail.verification')}</Text>
-          <Text style={styles.value}>
-            {t('detail.verified', { value: accident.verified ? t('common.enabled') : t('common.disabled') })}
-          </Text>
-          <Text style={styles.value}>
-            {t('detail.verifiedBy', { value: accident.verified_by ?? t('common.none') })}
-          </Text>
-          <Text style={styles.value}>
-            {t('detail.verifiedAt', { value: accident.verified_at ?? t('common.none') })}
-          </Text>
-          <Text style={styles.label}>{t('detail.notes')}</Text>
-          <TextInput
-            style={styles.input}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder={t('detail.notesPlaceholder')}
-            placeholderTextColor={theme.tokens.color.textSecondary}
-            multiline
+        <View style={styles.group}>
+          <FactRow
+            label={t('detail.id')}
+            value={accident.id ?? accident.request_id ?? t('common.none')}
           />
-          <View style={styles.actionRow}>
-            <Button
-              label={saving ? t('detail.saving') : t('detail.verify')}
-              onPress={() => applyVerification(true)}
-              disabled={saving}
+          <View style={styles.divider} />
+          <FactRow
+            label={t('detail.roadWeather')}
+            value={`${accident.road_type} · ${accident.weather}`}
+          />
+          <View style={styles.divider} />
+          <FactRow
+            label={t('detail.vehiclesCasualties')}
+            value={`${accident.vehicle_count} / ${accident.casualty_count}`}
+          />
+          <View style={styles.divider} />
+          <FactRow
+            label={t('detail.reporter')}
+            value={accident.reporter_uid ?? t('common.none')}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionHeading}>{t('detail.verification')}</Text>
+          <View style={styles.group}>
+            <FactRow
+              label={t('detail.status')}
+              value={accident.verified ? t('common.enabled') : t('common.disabled')}
             />
-            <Button
-              label={saving ? t('detail.saving') : t('detail.reject')}
-              variant="secondary"
-              onPress={() => applyVerification(false)}
-              disabled={saving}
+            <View style={styles.divider} />
+            <FactRow
+              label={t('detail.verifiedByLabel')}
+              value={accident.verified_by ?? t('common.none')}
+            />
+            <View style={styles.divider} />
+            <FactRow
+              label={t('detail.verifiedAtLabel')}
+              value={accident.verified_at ?? t('common.none')}
             />
           </View>
-        </IslandCard>
+
+          {isAdmin ? (
+            <View style={styles.adminBlock}>
+              <Text style={styles.label}>{t('detail.notes')}</Text>
+              <TextInput
+                style={styles.input}
+                value={notes}
+                onChangeText={setNotes}
+                placeholder={t('detail.notesPlaceholder')}
+                placeholderTextColor={theme.color.textSecondary}
+                multiline
+              />
+              <View style={styles.actionRow}>
+                <Button
+                  label={t('detail.verify')}
+                  onPress={() => applyVerification(true)}
+                  loading={saving}
+                  fullWidth
+                />
+                <Button
+                  label={t('detail.reject')}
+                  variant="secondary"
+                  onPress={() => applyVerification(false)}
+                  disabled={saving}
+                  fullWidth
+                />
+              </View>
+            </View>
+          ) : null}
+        </View>
 
         {relatedHotspot ? (
-          <IslandCard style={styles.card}>
-            <Text style={styles.sectionTitle}>{t('detail.relatedHotspot')}</Text>
-            <Text style={styles.value}>
-              {relatedHotspot.severity_level} ({relatedHotspot.accident_count})
-            </Text>
-            <Button
-              label={t('detail.openHotspot')}
-              variant="secondary"
+          <View style={styles.group}>
+            <Pressable
+              accessibilityRole="button"
               onPress={() =>
-                navigation.navigate('HotspotDetail', { hotspotId: relatedHotspot.area_id })
+                navigation.navigate('HotspotDetail', {
+                  hotspotId: relatedHotspot.area_id,
+                })
               }
-            />
-          </IslandCard>
+              style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}
+            >
+              <View style={styles.linkBody}>
+                <Text style={styles.linkTitle}>
+                  {relatedHotspot.severity_level} · {relatedHotspot.accident_count}
+                </Text>
+                <Text style={styles.linkSubtitle}>{t('detail.relatedHotspot')}</Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={theme.color.textSecondary}
+              />
+            </Pressable>
+          </View>
         ) : null}
-
-        <Button label={t('common.back')} variant="secondary" onPress={() => navigation.goBack()} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -237,7 +270,7 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.bg,
+      backgroundColor: theme.color.background,
     },
     centered: {
       flex: 1,
@@ -246,13 +279,83 @@ const createStyles = (theme: Theme) =>
       gap: 10,
     },
     content: {
-      padding: theme.spacing.lg,
-      gap: theme.spacing.sm,
+      padding: theme.space[4],
+      gap: theme.space[4],
+    },
+    hero: {
+      gap: theme.space[1],
+      padding: theme.space[5],
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+    },
+    heroSeverity: {
+      fontSize: 24,
+      lineHeight: 30,
+      fontWeight: '700',
+      color: theme.color.primary,
+    },
+    heroTime: {
+      fontSize: theme.type.caption.fontSize,
+      color: theme.color.textSecondary,
+    },
+    heroLocation: {
+      fontSize: 14,
+      color: theme.color.textSecondary,
+    },
+    group: {
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+      paddingHorizontal: theme.space[3],
+      paddingVertical: theme.space[1],
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.color.border,
+    },
+    section: {
+      gap: theme.space[2],
+    },
+    sectionHeading: {
+      fontSize: 20,
+      lineHeight: 26,
+      fontWeight: '700',
+      letterSpacing: -0.2,
+      color: theme.color.textPrimary,
+    },
+    adminBlock: {
+      gap: theme.space[2],
+      padding: theme.space[4],
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+    },
+    linkRow: {
+      minHeight: 60,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.space[3],
+      paddingHorizontal: theme.space[2],
+      paddingVertical: theme.space[2],
+    },
+    pressed: {
+      opacity: 0.75,
+    },
+    linkBody: {
+      flex: 1,
+      gap: 2,
+    },
+    linkTitle: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.color.textPrimary,
+    },
+    linkSubtitle: {
+      fontSize: theme.type.caption.fontSize,
+      color: theme.color.textSecondary,
     },
     headerWrap: {
-      marginBottom: theme.tokens.spacing[2],
-      backgroundColor: theme.tokens.color.background,
-      paddingBottom: theme.tokens.spacing[2],
+      marginBottom: theme.space[2],
+      backgroundColor: theme.color.background,
+      paddingBottom: theme.space[2],
     },
     card: {
       gap: 6,
@@ -261,29 +364,29 @@ const createStyles = (theme: Theme) =>
       fontSize: 12,
       fontWeight: '700',
       textTransform: 'uppercase',
-      color: theme.colors.text,
+      color: theme.color.textPrimary,
     },
     label: {
       fontSize: 11,
-      color: theme.colors.textMuted,
+      color: theme.color.textSecondary,
     },
     value: {
       fontSize: 12,
-      color: theme.colors.text,
+      color: theme.color.textPrimary,
     },
     muted: {
       fontSize: 12,
-      color: theme.colors.textMuted,
+      color: theme.color.textSecondary,
     },
     input: {
       minHeight: 80,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: theme.color.border,
       borderRadius: theme.radius.sm,
       paddingHorizontal: 10,
       paddingVertical: 8,
-      backgroundColor: theme.colors.surfaceAlt,
-      color: theme.colors.text,
+      backgroundColor: theme.color.surfaceElevated,
+      color: theme.color.textPrimary,
       textAlignVertical: 'top',
     },
     actionRow: {

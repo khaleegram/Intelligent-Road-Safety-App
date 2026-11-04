@@ -25,10 +25,11 @@ export default function ToggleSwitch({
       accessibilityLabel={accessibilityLabel}
       disabled={disabled}
       onPress={() => onValueChange(!value)}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       style={[
         styles.track,
         value
-          ? { backgroundColor: theme.tokens.color.primary, borderColor: theme.tokens.color.primary }
+          ? { backgroundColor: theme.color.primary, borderColor: theme.color.primary }
           : null,
         disabled && styles.disabled,
       ]}
@@ -43,20 +44,20 @@ const createStyles = (theme: Theme) =>
     track: {
       width: 52,
       height: 32,
-      borderRadius: theme.tokens.radius.full,
+      borderRadius: theme.radius.full,
       borderWidth: 1,
-      borderColor: theme.tokens.color.border,
-      backgroundColor: theme.tokens.color.surfaceElevated,
+      borderColor: theme.color.border,
+      backgroundColor: theme.color.surfaceElevated,
       justifyContent: 'center',
       paddingHorizontal: 3,
     },
     thumb: {
       width: 24,
       height: 24,
-      borderRadius: theme.tokens.radius.full,
-      backgroundColor: theme.tokens.color.surface,
+      borderRadius: theme.radius.full,
+      backgroundColor: theme.color.surface,
       borderWidth: 1,
-      borderColor: theme.tokens.color.border,
+      borderColor: theme.color.border,
     },
     thumbOn: {
       alignSelf: 'flex-end',

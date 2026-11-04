@@ -1,5 +1,12 @@
 export type AccidentSeverity = 'Fatal' | 'Critical' | 'Minor' | 'Damage Only';
 
+export type AccidentFeatures = {
+  lighting_condition?: string;
+  road_surface?: string;
+  traffic_density?: string;
+  suspected_cause?: string;
+};
+
 export type AccidentRecord = {
   id?: string;
   request_id?: string;
@@ -17,6 +24,8 @@ export type AccidentRecord = {
   verified_by?: string;
   verified_at?: string;
   notes?: string;
+  /** App-only payload; written to `accident_features/{request_id}`, never to `accidents`. */
+  features?: AccidentFeatures;
 };
 
 export type HotspotSeverity = 'Fatal' | 'Critical' | 'Minor' | 'Damage Only';
@@ -29,6 +38,10 @@ export type HotspotRecord = {
   severity_level: HotspotSeverity;
   accident_count: number;
   last_updated: string;
+  /** When the hotspot pipeline last ran. */
+  computed_at?: string;
+  /** Newest accident timestamp included in this pipeline run. */
+  data_through?: string;
   severity_counts?: {
     Fatal?: number;
     Critical?: number;
@@ -88,6 +101,22 @@ export type RiskPrediction = {
   model_version: string;
   updated_at: string;
   advisory_only: boolean;
+};
+
+export type SemFitMetrics = {
+  cfi?: number;
+  tli?: number;
+  rmsea?: number;
+  srmr?: number;
+};
+
+export type SemInsight = {
+  id?: string;
+  model_version?: string;
+  updated_at?: string;
+  fit?: SemFitMetrics;
+  path_coefficients?: Record<string, number>;
+  policy_recommendations?: string[];
 };
 
 export type BehaviourTrip = {

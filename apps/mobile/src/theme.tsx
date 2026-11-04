@@ -134,58 +134,41 @@ type DesignTokens = {
   };
 };
 
+export type TypeRole = {
+  fontSize: number;
+  lineHeight: number;
+  fontWeight: '400' | '500' | '600' | '700';
+  letterSpacing: number;
+};
+
 export type Theme = {
-  tokens: DesignTokens;
-  colors: {
-    bg: string;
-    surface: string;
-    surfaceAlt: string;
-    text: string;
-    textMuted: string;
-    textSoft: string;
-    border: string;
-    accent: string;
-    accentDark: string;
-    accentStart: string;
-    accentEnd: string;
-    danger: string;
-    warning: string;
-    success: string;
-    info: string;
+  /** Semantic palette — the only source of colour. */
+  color: DesignTokens['color'];
+  /** 8pt spacing scale. */
+  space: DesignTokens['spacing'];
+  /** Bundled type roles: size + line height + weight + tracking. */
+  type: {
+    display: TypeRole;
+    title: TypeRole;
+    heading: TypeRole;
+    body: TypeRole;
+    label: TypeRole;
+    caption: TypeRole;
   };
-  gradients: {
-    hero: [string, string, ...string[]];
-    card: [string, string, ...string[]];
-    accent: [string, string, ...string[]];
-    micro: [string, string, ...string[]];
-    success: [string, string, ...string[]];
-    warning: [string, string, ...string[]];
+  elevation: {
+    flat: DesignTokens['elevation']['none'];
+    raised: DesignTokens['elevation']['sm'];
+    floating: DesignTokens['elevation']['md'];
+    overlay: DesignTokens['elevation']['overlay'];
   };
+  motion: DesignTokens['motion'];
+  layout: DesignTokens['layout'];
   radius: {
     sm: number;
     md: number;
     lg: number;
     xl: number;
-  };
-  shadow: {
-    color: string;
-    opacity: number;
-    radius: number;
-    offset: { width: number; height: number };
-    elevation: number;
-  };
-  spacing: {
-    xs: number;
-    sm: number;
-    md: number;
-    lg: number;
-    xl: number;
-  };
-  font: {
-    title: number;
-    subtitle: number;
-    body: number;
-    small: number;
+    full: number;
   };
 };
 
@@ -302,112 +285,83 @@ const baseTokens: Omit<DesignTokens, 'color'> = {
   },
 };
 
-const buildTheme = (color: DesignTokens['color'], isDark: boolean): Theme => {
+const buildTheme = (color: DesignTokens['color']): Theme => {
   const tokens: DesignTokens = {
     ...baseTokens,
     color,
   };
 
+  const type: Theme['type'] = {
+    display: { fontSize: 32, lineHeight: 38, fontWeight: '700', letterSpacing: -0.5 },
+    title: { fontSize: 24, lineHeight: 30, fontWeight: '700', letterSpacing: -0.3 },
+    heading: { fontSize: 18, lineHeight: 24, fontWeight: '600', letterSpacing: 0 },
+    body: { fontSize: 15, lineHeight: 22, fontWeight: '400', letterSpacing: 0 },
+    label: { fontSize: 13, lineHeight: 18, fontWeight: '600', letterSpacing: 0.1 },
+    caption: { fontSize: 12, lineHeight: 16, fontWeight: '500', letterSpacing: 0.1 },
+  };
+
   return {
-    tokens,
-    colors: {
-      bg: color.background,
-      surface: color.surface,
-      surfaceAlt: color.surfaceElevated,
-      text: color.textPrimary,
-      textMuted: color.textSecondary,
-      textSoft: color.textSecondary,
-      border: color.border,
-      accent: color.primary,
-      accentDark: color.primaryActive,
-      accentStart: color.primary,
-      accentEnd: color.secondary,
-      danger: color.error,
-      warning: color.warning,
-      success: color.success,
-      info: color.info,
+    color,
+    space: tokens.spacing,
+    type,
+    elevation: {
+      flat: tokens.elevation.none,
+      raised: tokens.elevation.sm,
+      floating: tokens.elevation.md,
+      overlay: tokens.elevation.overlay,
     },
-    gradients: {
-      hero: isDark
-        ? ['#05235f', '#0840a5', '#045f8a']
-        : ['#0a47bf', '#0f5bdd', '#1a7cff'],
-      card: isDark ? ['#0f172a', '#131f34'] : ['#ffffff', '#f8fbff'],
-      accent: [color.primary, color.secondary],
-      micro: isDark ? ['#1b2a45', '#183357'] : ['#eaf2ff', '#f4f9ff'],
-      success: [color.success, isDark ? '#16a34a' : '#22c55e'],
-      warning: [color.warning, isDark ? '#ea580c' : '#f97316'],
-    },
+    motion: tokens.motion,
+    layout: tokens.layout,
     radius: {
       sm: tokens.radius.sm,
       md: tokens.radius.md,
       lg: tokens.radius.lg,
       xl: tokens.radius.xl,
-    },
-    shadow: {
-      color: tokens.elevation.md.shadowColor,
-      opacity: tokens.elevation.md.shadowOpacity,
-      radius: tokens.elevation.md.shadowRadius,
-      offset: tokens.elevation.md.shadowOffset,
-      elevation: tokens.elevation.md.elevation,
-    },
-    spacing: {
-      xs: tokens.spacing[2],
-      sm: tokens.spacing[3],
-      md: tokens.spacing[4],
-      lg: tokens.spacing[6],
-      xl: tokens.spacing[8],
-    },
-    font: {
-      title: tokens.typography.fontSize['2xl'],
-      subtitle: tokens.typography.fontSize.sm,
-      body: tokens.typography.fontSize.sm,
-      small: 11,
+      full: tokens.radius.full,
     },
   };
 };
 
 export const lightTheme: Theme = buildTheme(
   {
-    primary: '#0057d9',
-    primaryHover: '#0f67e8',
-    primaryActive: '#0046b3',
-    secondary: '#007fa6',
-    background: '#f3f7ff',
+    primary: '#c2410c',
+    primaryHover: '#ea580c',
+    primaryActive: '#9a3412',
+    secondary: '#175cd3',
+    background: '#f6f7f9',
     surface: '#ffffff',
-    surfaceElevated: '#e9f1ff',
-    textPrimary: '#0b1d3a',
-    textSecondary: '#4a5f84',
+    surfaceElevated: '#f1f3f7',
+    textPrimary: '#0b1220',
+    textSecondary: '#5b6779',
     textInverse: '#ffffff',
-    border: '#d0ddf5',
-    success: '#138657',
-    warning: '#c47908',
-    error: '#d1315b',
-    info: '#0b6ed1',
-    focusRing: '#2b79f6',
-  },
-  false
+    border: '#dde3ea',
+    success: '#067647',
+    warning: '#b54708',
+    error: '#d92d20',
+    info: '#175cd3',
+    focusRing: '#c2410c',
+  }
 );
 
 export const darkTheme: Theme = buildTheme(
   {
-    primary: '#6ea7ff',
-    primaryHover: '#88b8ff',
-    primaryActive: '#a6cbff',
-    secondary: '#45b0d4',
-    background: '#070f1f',
-    surface: '#0e1a32',
-    surfaceElevated: '#132446',
-    textPrimary: '#f3f7ff',
-    textSecondary: '#becfea',
-    textInverse: '#0f172a',
-    border: '#294067',
-    success: '#4bd88b',
-    warning: '#f2b54a',
-    error: '#ff7fa3',
-    info: '#63c0ff',
-    focusRing: '#95c2ff',
-  },
-  true
+    primary: '#f5a524',
+    primaryHover: '#ffb84d',
+    primaryActive: '#e08e0b',
+    secondary: '#4ea8ff',
+    background: '#080b10',
+    surface: '#10151d',
+    surfaceElevated: '#161d28',
+    textPrimary: '#f2f5f9',
+    textSecondary: '#9aa7ba',
+    textInverse: '#0a0e14',
+    border: '#232c3a',
+    success: '#34d399',
+    warning: '#fbbf24',
+    error: '#ff5a5f',
+    info: '#4ea8ff',
+    focusRing: '#ffc14d',
+  }
 );
 
 export type ThemePreference = 'system' | 'light' | 'dark';
@@ -425,13 +379,14 @@ const THEME_STORAGE_KEY = 'theme_preference_v1';
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export const ThemeProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
-  const [preference, setPreferenceState] = useState<ThemePreference>('system');
+  // Night Drive is dark-first; system/light remain available in Settings.
+  const [preference, setPreferenceState] = useState<ThemePreference>('dark');
   const [systemScheme, setSystemScheme] = useState<ThemeMode>(
     Appearance.getColorScheme() === 'dark' ? 'dark' : 'light'
   );
 
   useEffect(() => {
-    storage.get<ThemePreference | ThemeMode>(THEME_STORAGE_KEY, 'system').then((stored) => {
+    storage.get<ThemePreference | ThemeMode>(THEME_STORAGE_KEY, 'dark').then((stored) => {
       if (stored === 'light' || stored === 'dark' || stored === 'system') {
         setPreferenceState(stored);
       }

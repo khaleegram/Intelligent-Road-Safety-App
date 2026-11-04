@@ -20,15 +20,19 @@ export default function AlertBanner({
 
   const borderColor =
     variant === 'success'
-      ? theme.tokens.color.success
+      ? theme.color.success
       : variant === 'warning'
-        ? theme.tokens.color.warning
+        ? theme.color.warning
         : variant === 'error'
-          ? theme.tokens.color.error
-          : theme.tokens.color.info;
+          ? theme.color.error
+          : theme.color.info;
 
   return (
-    <View style={[styles.container, { borderColor }]}>
+    <View
+      accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
+      style={[styles.container, { borderColor }]}
+    >
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.message}>{message}</Text>
     </View>
@@ -39,18 +43,20 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       borderWidth: 1,
-      borderRadius: theme.tokens.radius.md,
-      backgroundColor: theme.tokens.color.surfaceElevated,
-      padding: theme.tokens.spacing[3],
-      gap: theme.tokens.spacing[1],
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.color.surfaceElevated,
+      padding: theme.space[3],
+      gap: theme.space[1],
     },
     title: {
-      color: theme.tokens.color.textPrimary,
-      fontSize: theme.tokens.typography.fontSize.sm,
-      fontWeight: theme.tokens.typography.fontWeight.bold,
+      color: theme.color.textPrimary,
+      fontSize: theme.type.label.fontSize,
+      lineHeight: theme.type.label.lineHeight,
+      fontWeight: theme.type.label.fontWeight,
     },
     message: {
-      color: theme.tokens.color.textSecondary,
-      fontSize: theme.tokens.typography.fontSize.xs,
+      color: theme.color.textSecondary,
+      fontSize: theme.type.caption.fontSize,
+      lineHeight: theme.type.caption.lineHeight,
     },
   });

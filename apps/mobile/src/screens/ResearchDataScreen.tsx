@@ -5,9 +5,9 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import Button from '../components/Button';
-import GradientChip from '../components/GradientChip';
 import IslandBar from '../components/IslandBar';
-import IslandCard from '../components/IslandCard';
+import OptionGrid from '../components/OptionGrid';
+import SegmentedControl from '../components/SegmentedControl';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { fetchAccidents } from '../services/firestore';
 import { accidentsToCsv } from '../services/exportCsv';
@@ -85,14 +85,14 @@ export default function ResearchDataScreen() {
         stickyHeaderIndices={[0]}
         scrollEventThrottle={16}
         onScroll={(event) => {
-          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.space[2];
           if (shouldCompact !== compactBar) {
             setCompactBar(shouldCompact);
           }
         }}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: theme.spacing.lg + insets.bottom },
+          { paddingBottom: theme.space[6] + insets.bottom },
         ]}
       >
         <View style={styles.headerWrap}>
@@ -111,59 +111,89 @@ export default function ResearchDataScreen() {
           />
         </View>
         {!authLoading && !isAdmin ? (
-          <IslandCard style={styles.card}>
-            <Text style={styles.sectionTitle}>{t('common.adminRequired')}</Text>
-            <Button label={t('common.back')} variant="secondary" onPress={() => navigation.goBack()} />
-          </IslandCard>
+          <View style={styles.group}>
+            <Text style={styles.sectionHeading}>{t('common.adminRequired')}</Text>
+            <Button
+              label={t('common.back')}
+              variant="secondary"
+              onPress={() => navigation.goBack()}
+            />
+          </View>
         ) : null}
         {!authLoading && !isAdmin ? null : (
           <>
-        <IslandCard style={styles.card}>
-          <View style={styles.filterRow}>
-            {(['All', 'Fatal', 'Critical', 'Minor', 'Damage Only'] as const).map((value) => (
-              <GradientChip
-                key={value}
-                style={styles.chip}
-                active={severityFilter === value}
-                label={value === 'All' ? t('common.clear') : t(`options.severity.${value}`)}
-                onPress={() => setSeverityFilter(value)}
+            <View style={styles.filters}>
+              <OptionGrid
+                columns={3}
+                accessibilityLabel={t('research.title')}
+                value={severityFilter}
+                onChange={(value) =>
+                  setSeverityFilter(value as AccidentSeverity | 'All')
+                }
+                options={[
+                  { value: 'All', label: t('common.all') },
+                  { value: 'Fatal', label: t('options.severity.Fatal') },
+                  { value: 'Critical', label: t('options.severity.Critical') },
+                  { value: 'Minor', label: t('options.severity.Minor') },
+                  { value: 'Damage Only', label: t('options.severity.Damage Only') },
+                ]}
               />
-            ))}
-          </View>
-          <View style={styles.filterRow}>
-            {(['All', 1, 7, 30] as const).map((value) => (
-              <GradientChip
-                key={String(value)}
-                style={styles.chip}
-                active={daysFilter === value}
-                label={value === 'All' ? t('common.clear') : String(value)}
-                onPress={() => setDaysFilter(value)}
+              <SegmentedControl
+                accessibilityLabel={t('research.title')}
+                value={String(daysFilter)}
+                onChange={(value) =>
+                  setDaysFilter(
+                    value === 'All' ? 'All' : (Number(value) as 1 | 7 | 30)
+                  )
+                }
+                options={[
+                  { value: 'All', label: t('common.all') },
+                  { value: '1', label: '24h' },
+                  { value: '7', label: '7d' },
+                  { value: '30', label: '30d' },
+                ]}
               />
-            ))}
-          </View>
-          <TextInput
-            style={styles.input}
-            placeholder={t('search.placeholder')}
-            placeholderTextColor={theme.tokens.color.textSecondary}
-            value={searchText}
-            onChangeText={setSearchText}
-          />
-          <Button label={t('research.export')} onPress={exportCsv} disabled={filtered.length === 0} />
-        </IslandCard>
-
-        <IslandCard style={styles.card}>
-          <Text style={styles.sectionTitle}>{filtered.length}</Text>
-          {loading ? <Text style={styles.muted}>{t('research.loading')}</Text> : null}
-          {!loading && filtered.length === 0 ? <Text style={styles.muted}>{t('research.empty')}</Text> : null}
-          {filtered.slice(0, 50).map((item) => (
-            <View key={item.id ?? item.request_id} style={styles.row}>
-              <Text style={styles.rowTitle}>{item.severity} - {item.road_type}</Text>
-              <Text style={styles.muted}>{item.created_at ?? item.timestamp}</Text>
+              <TextInput
+                style={styles.input}
+                placeholder={t('search.placeholder')}
+                placeholderTextColor={theme.color.textSecondary}
+                value={searchText}
+                onChangeText={setSearchText}
+              />
+              <Button
+                label={t('research.export')}
+                onPress={exportCsv}
+                disabled={filtered.length === 0}
+                fullWidth
+              />
             </View>
-          ))}
-        </IslandCard>
 
-        <Button label={t('common.back')} variant="secondary" onPress={() => navigation.goBack()} />
+            <View style={styles.section}>
+              <Text style={styles.sectionHeading}>
+                {filtered.length} · {t('nav.reports')}
+              </Text>
+              {loading ? <Text style={styles.muted}>{t('research.loading')}</Text> : null}
+              {!loading && filtered.length === 0 ? (
+                <Text style={styles.muted}>{t('research.empty')}</Text>
+              ) : null}
+              {!loading && filtered.length > 0 ? (
+                <View style={styles.group}>
+                  {filtered.slice(0, 50).map((item, index) => (
+                    <View key={item.id ?? item.request_id}>
+                      {index > 0 ? <View style={styles.divider} /> : null}
+                      <View style={styles.row}>
+                        <Text style={styles.rowTitle}>
+                          {item.severity} · {item.road_type}
+                        </Text>
+                        <Text style={styles.muted}>
+                          {item.created_at ?? item.timestamp}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
           </>
         )}
       </ScrollView>
@@ -175,34 +205,60 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.bg,
+      backgroundColor: theme.color.background,
     },
     content: {
-      padding: theme.spacing.lg,
-      gap: theme.spacing.md,
+      padding: theme.space[4],
+      gap: theme.space[4],
     },
     headerWrap: {
-      marginBottom: theme.tokens.spacing[2],
-      backgroundColor: theme.tokens.color.background,
-      paddingBottom: theme.tokens.spacing[2],
+      marginBottom: theme.space[1],
+      backgroundColor: theme.color.background,
+      paddingBottom: theme.space[2],
+    },
+    filters: {
+      gap: theme.space[3],
+      padding: theme.space[4],
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+    },
+    section: {
+      gap: theme.space[2],
+    },
+    sectionHeading: {
+      fontSize: 20,
+      lineHeight: 26,
+      fontWeight: '700',
+      letterSpacing: -0.2,
+      color: theme.color.textPrimary,
+    },
+    group: {
+      gap: theme.space[2],
+      padding: theme.space[4],
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.color.border,
     },
     title: {
       fontSize: 18,
       fontWeight: '700',
-      color: theme.colors.text,
+      color: theme.color.textPrimary,
     },
     subtitle: {
       fontSize: 12,
-      color: theme.colors.textMuted,
+      color: theme.color.textSecondary,
     },
     card: {
-      gap: theme.spacing.md,
+      gap: theme.space[4],
     },
     sectionTitle: {
       fontSize: 12,
       fontWeight: '700',
       textTransform: 'uppercase',
-      color: theme.colors.text,
+      color: theme.color.textPrimary,
     },
     filterRow: {
       flexDirection: 'row',
@@ -214,32 +270,32 @@ const createStyles = (theme: Theme) =>
     },
     input: {
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: theme.color.border,
       borderRadius: theme.radius.sm,
       minHeight: 44,
       paddingHorizontal: 12,
       paddingVertical: 10,
-      fontSize: theme.tokens.typography.fontSize.sm,
-      color: theme.colors.text,
-      backgroundColor: theme.tokens.color.surfaceElevated,
+      fontSize: theme.type.body.fontSize,
+      color: theme.color.textPrimary,
+      backgroundColor: theme.color.surfaceElevated,
     },
     row: {
-      marginTop: theme.tokens.spacing[2],
+      marginTop: theme.space[2],
       paddingVertical: 10,
       paddingHorizontal: 10,
       borderWidth: 1,
-      borderColor: theme.tokens.color.border,
-      borderRadius: theme.tokens.radius.md,
-      backgroundColor: theme.tokens.color.surfaceElevated,
+      borderColor: theme.color.border,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.color.surfaceElevated,
       gap: 4,
     },
     rowTitle: {
       fontSize: 12,
-      color: theme.colors.text,
+      color: theme.color.textPrimary,
       fontWeight: '600',
     },
     muted: {
       fontSize: 11,
-      color: theme.colors.textMuted,
+      color: theme.color.textSecondary,
     },
   });

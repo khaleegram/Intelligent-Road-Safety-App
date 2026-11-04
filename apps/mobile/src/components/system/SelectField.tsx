@@ -43,7 +43,7 @@ export default function SelectField({
           styles.select,
           {
             minHeight: sizeMap[size],
-            borderColor: error ? theme.tokens.color.error : theme.tokens.color.border,
+            borderColor: error ? theme.color.error : theme.color.border,
           },
           pressed && !disabled ? styles.pressed : null,
           disabled ? styles.disabled : null,
@@ -52,7 +52,7 @@ export default function SelectField({
         <Text style={[styles.value, !value ? styles.placeholder : null]}>
           {value ?? placeholder}
         </Text>
-        <Ionicons name="chevron-down" size={16} color={theme.tokens.color.textSecondary} />
+        <Ionicons name="chevron-down" size={16} color={theme.color.textSecondary} />
       </Pressable>
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
@@ -62,28 +62,28 @@ export default function SelectField({
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
-      gap: theme.tokens.spacing[1],
+      gap: theme.space[1],
     },
     label: {
-      fontSize: theme.tokens.typography.fontSize.sm,
-      color: theme.tokens.color.textPrimary,
-      fontWeight: theme.tokens.typography.fontWeight.medium,
+      fontSize: theme.type.body.fontSize,
+      color: theme.color.textPrimary,
+      fontWeight: '500',
     },
     select: {
       borderWidth: 1,
-      borderRadius: theme.tokens.radius.md,
-      paddingHorizontal: theme.tokens.spacing[3],
-      backgroundColor: theme.tokens.color.surface,
+      borderRadius: theme.radius.md,
+      paddingHorizontal: theme.space[3],
+      backgroundColor: theme.color.surface,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
     },
     value: {
-      fontSize: theme.tokens.typography.fontSize.sm,
-      color: theme.tokens.color.textPrimary,
+      fontSize: theme.type.body.fontSize,
+      color: theme.color.textPrimary,
     },
     placeholder: {
-      color: theme.tokens.color.textSecondary,
+      color: theme.color.textSecondary,
     },
     pressed: {
       opacity: 0.9,
@@ -92,7 +92,7 @@ const createStyles = (theme: Theme) =>
       opacity: 0.5,
     },
     error: {
-      fontSize: theme.tokens.typography.fontSize.xs,
-      color: theme.tokens.color.error,
+      fontSize: theme.type.caption.fontSize,
+      color: theme.color.error,
     },
   });

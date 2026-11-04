@@ -29,6 +29,8 @@ const getCellKey = (lat, lng, gridSize) => {
 export const computeHotspots = ({ accidents, threshold, gridSizeDegrees, timeBucket }) => {
   const cells = new Map();
   const now = Date.now();
+  const computedAt = new Date(now).toISOString();
+  let dataThroughMs = 0;
   const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
   const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
 
@@ -45,6 +47,9 @@ export const computeHotspots = ({ accidents, threshold, gridSizeDegrees, timeBuc
 
     const parsedTimestamp = Date.parse(timestamp);
     const ageMs = Number.isNaN(parsedTimestamp) ? Number.POSITIVE_INFINITY : now - parsedTimestamp;
+    if (!Number.isNaN(parsedTimestamp) && parsedTimestamp > dataThroughMs) {
+      dataThroughMs = parsedTimestamp;
+    }
     const existing = cells.get(key);
     if (existing) {
       existing.count += 1;
@@ -93,6 +98,8 @@ export const computeHotspots = ({ accidents, threshold, gridSizeDegrees, timeBuc
       severity_level: cell.maxSeverity,
       accident_count: cell.count,
       last_updated: cell.latestTimestamp,
+      computed_at: computedAt,
+      data_through: dataThroughMs > 0 ? new Date(dataThroughMs).toISOString() : computedAt,
       severity_counts: cell.severityCounts,
       recent_7d_count: cell.recent_7d_count,
       recent_30d_count: cell.recent_30d_count,

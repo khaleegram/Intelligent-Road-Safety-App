@@ -2,8 +2,8 @@ import process from 'node:process';
 import { runHotspotPipeline } from './hotspots-lib.mjs';
 
 const args = new Set(process.argv.slice(2));
-const threshold = Number(getArgValue('--threshold', '3'));
-const gridSizeDegrees = Number(getArgValue('--grid', '0.01'));
+const threshold = Number(getArgValue('--threshold', '2'));
+const gridSizeDegrees = Number(getArgValue('--grid', '0.03'));
 const dryRun = args.has('--dry-run');
 const onlyVerified = args.has('--verified');
 const timeBucket = getArgValue('--time-bucket', 'all');

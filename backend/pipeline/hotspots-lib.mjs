@@ -1,13 +1,14 @@
 import fs from 'node:fs';
 import process from 'node:process';
-import admin from 'firebase-admin';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import { computeHotspots } from '../shared/hotspots-core.mjs';
 
 export { computeHotspots };
 
 export const initFirestore = () => {
-  if (admin.apps.length > 0) {
-    return admin.firestore();
+  if (getApps().length > 0) {
+    return getFirestore();
   }
 
   const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
@@ -20,12 +21,12 @@ export const initFirestore = () => {
       throw new Error('GOOGLE_APPLICATION_CREDENTIALS path not found.');
     }
     const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf-8'));
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+    initializeApp({
+      credential: cert(serviceAccount),
     });
   } else if (envProjectId && envClientEmail && envPrivateKey) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
+    initializeApp({
+      credential: cert({
         projectId: envProjectId,
         clientEmail: envClientEmail,
         privateKey: envPrivateKey.replace(/\\n/g, '\n'),
@@ -33,10 +34,10 @@ export const initFirestore = () => {
     });
   } else {
     // Application Default Credentials (Cloud Run / GCP)
-    admin.initializeApp();
+    initializeApp();
   }
 
-  return admin.firestore();
+  return getFirestore();
 };
 
 export const runHotspotPipeline = async ({

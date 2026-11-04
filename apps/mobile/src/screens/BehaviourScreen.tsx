@@ -6,7 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import Button from '../components/Button';
 import IslandBar from '../components/IslandBar';
-import IslandCard from '../components/IslandCard';
+import StatTile from '../components/StatTile';
 import ToggleSwitch from '../components/system/ToggleSwitch';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import {
@@ -94,14 +94,14 @@ export default function BehaviourScreen() {
         stickyHeaderIndices={[0]}
         scrollEventThrottle={16}
         onScroll={(event) => {
-          const shouldCompact = event.nativeEvent.contentOffset.y > theme.tokens.spacing[2];
+          const shouldCompact = event.nativeEvent.contentOffset.y > theme.space[2];
           if (shouldCompact !== compactBar) {
             setCompactBar(shouldCompact);
           }
         }}
         contentContainerStyle={[
           styles.content,
-          { paddingHorizontal: contentPadding, paddingBottom: theme.spacing.lg + insets.bottom },
+          { paddingHorizontal: contentPadding, paddingBottom: theme.space[6] + insets.bottom },
         ]}
       >
         <View style={styles.headerWrap}>
@@ -112,6 +112,7 @@ export default function BehaviourScreen() {
             mode="public"
             compact={compactBar}
             isAdmin={isAdmin}
+            onBack={() => navigation.goBack()}
             onToggle={(next) => {
               if (next === 'admin') {
                 navigation.navigate('Admin', undefined);
@@ -120,7 +121,26 @@ export default function BehaviourScreen() {
           />
         </View>
 
-        <IslandCard style={styles.card}>
+        <View style={styles.hero}>
+          <Text
+            style={[styles.heroValue, tripActive && { color: theme.color.primary }]}
+          >
+            {tripActive ? t('behaviour.recording') : t('behaviour.notRecording')}
+          </Text>
+          <Button
+            label={tripActive ? t('behaviour.endTrip') : t('behaviour.startTrip')}
+            variant={tripActive ? 'destructive' : 'primary'}
+            onPress={tripActive ? handleEndTrip : handleStartTrip}
+            loading={busy}
+            disabled={!tripActive && !consent}
+            fullWidth
+          />
+          {!consent ? (
+            <Text style={styles.heroHint}>{t('behaviour.noConsent')}</Text>
+          ) : null}
+        </View>
+
+        <View style={styles.group}>
           <View style={styles.consentRow}>
             <Text style={styles.consentText}>{t('behaviour.consent')}</Text>
             <ToggleSwitch
@@ -129,57 +149,24 @@ export default function BehaviourScreen() {
               accessibilityLabel={t('behaviour.consent')}
             />
           </View>
-          {!consent ? (
-            <Button
-              label={t('behaviour.acceptConsent')}
-              variant="secondary"
-              onPress={() => handleConsent(true)}
-            />
-          ) : (
-            <Button
-              label={t('behaviour.revokeConsent')}
-              variant="ghost"
-              onPress={() => handleConsent(false)}
-            />
-          )}
-        </IslandCard>
-
-        <IslandCard style={styles.card}>
-          {tripActive ? (
-            <Text style={styles.active}>{t('behaviour.active')}</Text>
-          ) : null}
-          {!tripActive ? (
-            <Button
-              label={t('behaviour.startTrip')}
-              onPress={handleStartTrip}
-              disabled={!consent || busy}
-            />
-          ) : (
-            <Button
-              label={t('behaviour.endTrip')}
-              onPress={handleEndTrip}
-              disabled={busy}
-            />
-          )}
-        </IslandCard>
+        </View>
 
         {lastTrip ? (
-          <IslandCard style={styles.card}>
-            <Text style={styles.stat}>
-              {t('behaviour.score', { score: lastTrip.score })}
-            </Text>
-            <Text style={styles.stat}>
-              {t('behaviour.harsh', { count: lastTrip.harsh_events })}
-            </Text>
-            <Text style={styles.stat}>
-              {t('behaviour.distance', {
-                km: (lastTrip.distance_m / 1000).toFixed(1),
-              })}
-            </Text>
-          </IslandCard>
+          <View style={styles.section}>
+            <Text style={styles.sectionHeading}>{t('behaviour.lastTrip')}</Text>
+            <View style={styles.statsRow}>
+              <StatTile label={t('behaviour.scoreLabel')} value={String(lastTrip.score)} />
+              <StatTile
+                label={t('behaviour.harshLabel')}
+                value={String(lastTrip.harsh_events)}
+              />
+              <StatTile
+                label={t('behaviour.distanceLabel')}
+                value={`${(lastTrip.distance_m / 1000).toFixed(1)} km`}
+              />
+            </View>
+          </View>
         ) : null}
-
-        <Button label={t('common.back')} variant="secondary" onPress={() => navigation.goBack()} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -189,38 +176,78 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.bg,
+      backgroundColor: theme.color.background,
     },
     content: {
-      padding: theme.tokens.spacing[4],
-      gap: theme.tokens.spacing[4],
+      padding: theme.space[4],
+      gap: theme.space[4],
     },
     headerWrap: {
-      marginBottom: theme.tokens.spacing[2],
-      backgroundColor: theme.tokens.color.background,
-      paddingBottom: theme.tokens.spacing[2],
+      marginBottom: theme.space[2],
+      backgroundColor: theme.color.background,
+      paddingBottom: theme.space[2],
     },
     card: {
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
+    },
+    group: {
+      gap: theme.space[3],
+      padding: theme.space[4],
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+    },
+    hero: {
+      gap: theme.space[3],
+      padding: theme.space[5],
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+    },
+    heroValue: {
+      fontSize: 24,
+      lineHeight: 30,
+      fontWeight: '700',
+      color: theme.color.textPrimary,
+    },
+    heroHint: {
+      fontSize: theme.type.caption.fontSize,
+      color: theme.color.textSecondary,
+    },
+    section: {
+      gap: theme.space[2],
+    },
+    sectionHeading: {
+      fontSize: 20,
+      lineHeight: 26,
+      fontWeight: '700',
+      letterSpacing: -0.2,
+      color: theme.color.textPrimary,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      gap: theme.space[2],
     },
     consentRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: theme.tokens.spacing[2],
+      gap: theme.space[2],
     },
     consentText: {
       flex: 1,
-      fontSize: theme.tokens.typography.fontSize.sm,
-      color: theme.tokens.color.textSecondary,
+      fontSize: theme.type.body.fontSize,
+      color: theme.color.textSecondary,
     },
     active: {
-      fontSize: theme.tokens.typography.fontSize.sm,
-      fontWeight: theme.tokens.typography.fontWeight.semibold,
-      color: theme.tokens.color.primary,
+      fontSize: theme.type.body.fontSize,
+      fontWeight: '600',
+      color: theme.color.primary,
+    },
+    hint: {
+      fontSize: theme.type.caption.fontSize,
+      color: theme.color.textSecondary,
     },
     stat: {
-      fontSize: theme.tokens.typography.fontSize.sm,
-      color: theme.tokens.color.textPrimary,
+      fontSize: theme.type.body.fontSize,
+      color: theme.color.textPrimary,
     },
   });

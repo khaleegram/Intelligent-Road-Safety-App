@@ -7,7 +7,7 @@ export type BreakpointName = 'mobile' | 'tablet' | 'desktop' | 'wide';
 export function useBreakpoint() {
   const { width } = useWindowDimensions();
   const { theme } = useTheme();
-  const { breakpoints, containerPadding, gridColumns, maxContentWidth } = theme.tokens.layout;
+  const { breakpoints, containerPadding, gridColumns, maxContentWidth } = theme.layout;
 
   let name: BreakpointName = 'mobile';
   if (width >= breakpoints.wide) name = 'wide';

@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import admin from 'firebase-admin';
+import { cert, initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 const args = new Set(process.argv.slice(2));
 const onlyVerified = args.has('--verified');
@@ -23,20 +24,20 @@ const initFirestore = () => {
 
   if (serviceAccountPath) {
     const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf-8'));
-    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    initializeApp({ credential: cert(serviceAccount) });
   } else if (envProjectId && envClientEmail && envPrivateKey) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
+    initializeApp({
+      credential: cert({
         projectId: envProjectId,
         clientEmail: envClientEmail,
         privateKey: envPrivateKey.replace(/\\n/g, '\n'),
       }),
     });
   } else {
-    admin.initializeApp();
+    initializeApp();
   }
 
-  return admin.firestore();
+  return getFirestore();
 };
 
 const applyTimeBucket = (timestamp, bucket) => {

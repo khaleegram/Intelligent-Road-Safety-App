@@ -1,5 +1,5 @@
 import http from 'node:http';
-import admin from 'firebase-admin';
+import { getAuth } from 'firebase-admin/auth';
 import { runHotspotPipeline } from './hotspots-lib.mjs';
 import { initFirestore } from './hotspots-lib.mjs';
 
@@ -23,8 +23,8 @@ const parseBody = (req) =>
 const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/run') {
     const body = await parseBody(req);
-    const threshold = Number(body.threshold ?? process.env.HOTSPOT_THRESHOLD ?? 3);
-    const gridSizeDegrees = Number(body.grid ?? process.env.HOTSPOT_GRID ?? 0.01);
+    const threshold = Number(body.threshold ?? process.env.HOTSPOT_THRESHOLD ?? 2);
+    const gridSizeDegrees = Number(body.grid ?? process.env.HOTSPOT_GRID ?? 0.03);
     const timeBucket = body.time_bucket ?? process.env.HOTSPOT_TIME_BUCKET ?? 'all';
     const onlyVerified = Boolean(body.verified ?? process.env.HOTSPOT_VERIFIED === 'true');
     const dryRun = Boolean(body.dry_run ?? false);
@@ -64,7 +64,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       const db = initFirestore();
-      const decoded = await admin.auth().verifyIdToken(token);
+      const decoded = await getAuth().verifyIdToken(token);
       const callerRef = db.collection('users').doc(decoded.uid);
       const callerSnapshot = await callerRef.get();
       const callerData = callerSnapshot.data();
@@ -91,7 +91,7 @@ const server = http.createServer(async (req, res) => {
         },
         { merge: true }
       );
-      await admin.auth().setCustomUserClaims(targetUid, { is_admin: isAdmin });
+      await getAuth().setCustomUserClaims(targetUid, { is_admin: isAdmin });
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, targetUid, isAdmin }));
