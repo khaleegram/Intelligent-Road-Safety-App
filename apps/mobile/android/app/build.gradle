@@ -113,15 +113,28 @@ packagingOptions {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Release signing is read from android/keystore.properties, which is gitignored.
+        // Without that file the release build falls back to the debug key so CI and
+        // fresh clones still build.
+        if (rootProject.file('keystore.properties').exists()) {
+            def keystoreProps = new Properties()
+            keystoreProps.load(new FileInputStream(rootProject.file('keystore.properties')))
+            release {
+                storeFile file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig rootProject.file('keystore.properties').exists()
+                ? signingConfigs.release
+                : signingConfigs.debug
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds

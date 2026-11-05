@@ -15,7 +15,6 @@ import * as Location from 'expo-location';
 
 import Button from '../components/Button';
 import IslandBar from '../components/IslandBar';
-import IslandCard from '../components/IslandCard';
 import InputField from '../components/system/InputField';
 import ListItem from '../components/system/ListItem';
 import EmptyState from '../components/system/EmptyState';
@@ -146,6 +145,7 @@ export default function SosScreen() {
             mode="public"
             compact={compactBar}
             isAdmin={isAdmin}
+            onBack={() => navigation.goBack()}
             onToggle={(next) => {
               if (next === 'admin') {
                 navigation.navigate('Admin', undefined);
@@ -154,56 +154,68 @@ export default function SosScreen() {
           />
         </View>
 
-        <IslandCard style={styles.card}>
-          <Button label={t('sos.trigger')} onPress={confirmSos} variant="destructive" />
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('sos.eyebrow')}</Text>
           <Button
-            label={t('sos.callFrsc')}
-            variant="secondary"
-            onPress={() => Linking.openURL('tel:122')}
+            label={t('sos.trigger')}
+            onPress={confirmSos}
+            variant="destructive"
+            size="lg"
           />
-          <Button
-            label={t('sos.callPolice')}
-            variant="secondary"
-            onPress={() => Linking.openURL('tel:112')}
-          />
-        </IslandCard>
+          <View style={styles.group}>
+            <ListItem
+              title={t('sos.callFrsc')}
+              subtitle="122"
+              onPress={() => Linking.openURL('tel:122')}
+            />
+            <View style={styles.divider} />
+            <ListItem
+              title={t('sos.callPolice')}
+              subtitle="112"
+              onPress={() => Linking.openURL('tel:112')}
+            />
+          </View>
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('sos.contacts')}</Text>
-          <IslandCard style={styles.card}>
-            {contacts.length === 0 ? (
-              <EmptyState
-                title={t('sos.emptyContacts')}
-                reason={t('sos.addContact')}
-                nextStep={t('sos.name')}
-              />
-            ) : (
-              contacts.map((contact) => (
-                <View key={contact.id ?? contact.phone} style={styles.contactRow}>
-                  <ListItem
-                    title={contact.name}
-                    subtitle={contact.phone}
-                    meta={contact.relationship}
-                  />
-                  <Button
-                    label={t('sos.delete')}
-                    variant="ghost"
-                    size="sm"
-                    onPress={() => {
-                      if (contact.id) {
-                        confirmDelete(contact.id);
-                      }
-                    }}
-                  />
+          {contacts.length === 0 ? (
+            <EmptyState
+              title={t('sos.emptyContacts')}
+              reason={t('sos.addContact')}
+              nextStep={t('sos.name')}
+            />
+          ) : (
+            <View style={styles.group}>
+              {contacts.map((contact, index) => (
+                <View key={contact.id ?? contact.phone}>
+                  {index > 0 ? <View style={styles.divider} /> : null}
+                  <View style={styles.contactRow}>
+                    <ListItem
+                      title={contact.name}
+                      subtitle={contact.phone}
+                      meta={contact.relationship}
+                    />
+                    <Button
+                      label={t('sos.delete')}
+                      variant="ghost"
+                      size="sm"
+                      onPress={() => {
+                        if (contact.id) {
+                          confirmDelete(contact.id);
+                        }
+                      }}
+                    />
+                  </View>
                 </View>
-              ))
-            )}
-          </IslandCard>
+              ))}
+            </View>
+          )}
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('sos.addContact')}</Text>
-          <IslandCard style={styles.card}>
+          <View style={styles.form}>
             <InputField
               label={t('sos.name')}
               value={name}
@@ -226,10 +238,8 @@ export default function SosScreen() {
               onPress={handleAddContact}
               disabled={saving || !name.trim() || !phone.trim()}
             />
-          </IslandCard>
+          </View>
         </View>
-
-        <Button label={t('common.back')} variant="secondary" onPress={() => navigation.goBack()} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -259,10 +269,23 @@ const createStyles = (theme: Theme) =>
       color: theme.color.textPrimary,
       textTransform: 'uppercase',
     },
-    card: {
-      gap: theme.space[2],
+    group: {
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.color.surface,
+      paddingHorizontal: theme.space[3],
+      paddingVertical: theme.space[1],
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.color.border,
     },
     contactRow: {
-      gap: theme.space[1],
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: theme.space[2],
+    },
+    form: {
+      gap: theme.space[3],
     },
   });

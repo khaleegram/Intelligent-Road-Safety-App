@@ -81,3 +81,7 @@ backend/ml/model_registry/
 
 # stray root lockfile (no root package.json)
 /package-lock.json
+
+# Android release signing secrets
+**/android/keystore.properties
+*.jks
