@@ -46,6 +46,7 @@ export default function SettingsScreen() {
       setAlertsEnabled(prefs.enabled);
       setAlertRadius(prefs.radiusMeters);
     });
+    if (!__DEV__) return;
     getExpoPushToken()
       .then(setPushToken)
       .catch(() => setPushToken(null));
@@ -347,12 +348,14 @@ export default function SettingsScreen() {
               disabled={!isAdmin}
             />
             <View style={styles.divider} />
-            <View style={styles.tokenBlock}>
-              <Text style={styles.tokenLabel}>{t('settings.pushToken')}</Text>
-              <Text style={styles.tokenValue} selectable>
-                {pushToken ?? t('settings.pushTokenUnavailable')}
-              </Text>
-            </View>
+            {__DEV__ ? (
+              <View style={styles.tokenBlock}>
+                <Text style={styles.tokenLabel}>{t('settings.pushToken')}</Text>
+                <Text style={styles.tokenValue} selectable>
+                  {pushToken ?? t('settings.pushTokenUnavailable')}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
       </ScrollView>

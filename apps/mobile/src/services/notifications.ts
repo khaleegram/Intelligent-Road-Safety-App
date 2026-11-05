@@ -94,7 +94,7 @@ export async function getExpoPushToken(): Promise<string | null> {
     }
     const result = await notificationsModule.getExpoPushTokenAsync({ projectId });
     const token = typeof result?.data === 'string' ? result.data : null;
-    if (token) {
+    if (token && __DEV__) {
       console.log('[push] Expo push token:', token);
     }
     return token;
